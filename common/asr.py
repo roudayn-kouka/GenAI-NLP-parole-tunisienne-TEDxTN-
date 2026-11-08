@@ -239,8 +239,10 @@ def load_ctc(backbone: str, vocab_dir: str | Path, cfg: TrainConfig | None = Non
             model = Wav2Vec2ForCTC.from_pretrained(backbone)
         return proc, model.to(DEVICE)
 
+    # bos/eos désactivés : par défaut le tokenizer ajoute <s> et </s> au vocabulaire, la tête CTC peut alors les
+    # émettre (« </s> » vu dans les sorties) et pyctcdecode reçoit des symboles de plus d'un caractère.
     tok = Wav2Vec2CTCTokenizer(str(Path(vocab_dir) / "vocab.json"), unk_token="[UNK]", pad_token="[PAD]",
-                               word_delimiter_token="|")
+                               word_delimiter_token="|", bos_token=None, eos_token=None)
     common = dict(attention_dropout=0.0, hidden_dropout=0.0, feat_proj_dropout=0.0, layerdrop=0.0,
                   mask_time_prob=0.05 if cfg.spec_augment else 0.0, ctc_loss_reduction="mean",
                   ctc_zero_infinity=True, pad_token_id=tok.pad_token_id, vocab_size=len(tok))
@@ -265,7 +267,7 @@ def load_ctc(backbone: str, vocab_dir: str | Path, cfg: TrainConfig | None = Non
         else:
             model.freeze_feature_encoder()
     if cfg.gradient_checkpointing:
-        model.gradient_checkpointing_enable()
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     return proc, model.to(DEVICE)
 
 
@@ -289,8 +291,24 @@ class CTCCollator:
         return {key: feats[key], "attention_mask": feats["attention_mask"], "labels": lab}
 
 
-def build_kenlm_decoder(processor, kenlm_path: str | Path | None, alpha: float = 0.5, beta: float = 1.0):
-    """Décodeur beam search pyctcdecode, avec ou sans LM KenLM (amélioration du papier)."""
+def lm_unigrams(kenlm_path: str | Path | None) -> list[str] | None:
+    """Mots du corpus du LM (train_ctc.txt, à côté du .bin) : pyctcdecode en a besoin avec un LM binaire,
+    sinon il décode sans liste de mots (« No known unigrams provided, decoding results might be a lot worse »)."""
+    if not kenlm_path:
+        return None
+    corpus = Path(kenlm_path).with_name("train_ctc.txt")
+    if not corpus.exists():
+        return None
+    return sorted({w for line in corpus.read_text(encoding="utf-8").splitlines() for w in line.split()})
+
+
+_UNIGRAM_CACHE: dict[str, list[str] | None] = {}
+
+
+def build_kenlm_decoder(processor, kenlm_path: str | Path | None, alpha: float = 0.5, beta: float = 1.0,
+                        unigrams: list[str] | None = None):
+    """Décodeur beam search pyctcdecode, avec ou sans LM KenLM (amélioration du papier).
+    Les unigrammes sont lus dans le corpus du LM (train uniquement) s'ils ne sont pas fournis."""
     from pyctcdecode import build_ctcdecoder
     vocab = processor.tokenizer.get_vocab()
     labels = [None] * len(vocab)
@@ -298,7 +316,13 @@ def build_kenlm_decoder(processor, kenlm_path: str | Path | None, alpha: float =
         labels[idx] = tok
     pad = processor.tokenizer.pad_token
     labels = ["" if t == pad else " " if t == "|" else "⁇" if t == "[UNK]" else t for t in labels]
-    return build_ctcdecoder(labels, kenlm_model_path=str(kenlm_path) if kenlm_path else None, alpha=alpha, beta=beta)
+    if unigrams is None and kenlm_path:
+        key = str(kenlm_path)
+        if key not in _UNIGRAM_CACHE:
+            _UNIGRAM_CACHE[key] = lm_unigrams(kenlm_path)
+        unigrams = _UNIGRAM_CACHE[key]
+    return build_ctcdecoder(labels, kenlm_model_path=str(kenlm_path) if kenlm_path else None, unigrams=unigrams,
+                            alpha=alpha, beta=beta)
 
 
 @torch.inference_mode()
@@ -410,6 +434,9 @@ def training_args(output_dir: str | Path, cfg: TrainConfig, seq2seq: bool = True
         load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False,
         report_to="none", seed=cfg.seed, dataloader_num_workers=2, remove_unused_columns=False,
         gradient_checkpointing=cfg.gradient_checkpointing and not cfg.use_lora,
+        # mode non réentrant : avec le mode par défaut (réentrant), le backward de Whisper échoue
+        # (« Trying to backward through the graph a second time », constaté au smoke test)
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         label_names=["labels"], optim=_resolve_optim(cfg.optim),
     )
     import inspect

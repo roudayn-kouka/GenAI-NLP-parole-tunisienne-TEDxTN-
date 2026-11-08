@@ -7,6 +7,7 @@ Contenu (chemins relatifs à TEDXTN_WORKDIR) :
     audio_segments/*.wav                    uniquement les segments référencés par corpus.parquet
     models/asr_w2v-bert-2.0/vocab.json      vocabulaire CTC appris sur le train
     lm/tedxtn_4gram.bin                     LM KenLM 4-gram estimé sur le train uniquement
+    lm/train_ctc.txt                        corpus du LM (train) : unigrammes du décodeur pyctcdecode
 
 L'archive contient de l'audio TEDxTN (CC BY-NC-ND) : à garder sur un Drive privé, jamais publiée.
 """
@@ -38,12 +39,12 @@ def main():
     print(f"vocabulaire CTC : {len(vocab)} symboles")
 
     lm_bin = LM_DIR / "tedxtn_4gram.bin"
+    corpus = LM_DIR / "train_ctc.txt"   # même texte que le notebook 01 §7 (train uniquement) ; sert aussi d'unigrammes
+    corpus.write_text("\n".join(text.normalize_text(t, A.CTC_NORM) for t in train_df.transcription), encoding="utf-8")
     if not lm_bin.exists():
-        corpus = LM_DIR / "train_ctc.txt"   # même texte que le notebook 01 §7 (train uniquement)
-        corpus.write_text("\n".join(text.normalize_text(t, A.CTC_NORM) for t in train_df.transcription), encoding="utf-8")
         subprocess.run(["bash", str(PROJECT_ROOT / "scripts" / "build_kenlm.sh"), str(corpus), str(LM_DIR), "4"], check=True)
 
-    files = [DATA_DIR / "corpus.parquet", vocab_dir / "vocab.json", lm_bin] + [Path(p) for p in df.path]
+    files = [DATA_DIR / "corpus.parquet", vocab_dir / "vocab.json", lm_bin, corpus] + [Path(p) for p in df.path]
     missing = [f for f in files if not f.exists()]
     assert not missing, f"{len(missing)} fichiers manquants, ex. {missing[:3]}"
     out = Path(a.out)
