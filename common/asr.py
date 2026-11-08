@@ -86,6 +86,10 @@ def load_whisper(model_id: str, task: str = "transcribe", language: str = "arabi
         from transformers import BitsAndBytesConfig
         kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
         kwargs["device_map"] = "auto"
+    elif not for_training and torch.cuda.is_available():
+        # Inférence : chargement direct en fp16. Charger en fp32 puis appeler .half() fait transiter le modèle
+        # complet en fp32 sur le GPU (whisper-large-v3 : 6,2 Go -> OOM sur un GPU de 6 Go).
+        kwargs["torch_dtype"] = torch.float16
     model = WhisperForConditionalGeneration.from_pretrained(base_id, **kwargs)
 
     if for_training and cfg.spec_augment:
@@ -151,32 +155,50 @@ def whisper_generate(model, processor, wavs: list[np.ndarray], task: str = "tran
     model.eval()
     dev = next(model.parameters()).device
     dtype = next(model.parameters()).dtype
+
+    def _gen(chunk):
+        """generate() avec repli : si la VRAM manque, le lot est coupé en deux (petits GPU : 6 Go, dont ~1 Go
+        réservé par Windows/WDDM) au lieu de faire échouer toute l'évaluation."""
+        try:
+            feats = processor.feature_extractor(chunk, sampling_rate=SAMPLING_RATE, return_tensors="pt")
+            x = feats["input_features"].to(dev, dtype=dtype)
+            gen = model.generate(input_features=x, task=task, language=language, num_beams=num_beams,
+                                 max_new_tokens=max_new_tokens, return_dict_in_generate=True,
+                                 output_scores=return_details)
+            return [(gen, processor.batch_decode(gen.sequences, skip_special_tokens=True))]
+        except RuntimeError as e:   # torch.cuda.OutOfMemoryError ou « CUDA driver error: out of memory »
+            if "out of memory" not in str(e) or len(chunk) == 1:
+                raise
+            torch.cuda.empty_cache()
+            half = len(chunk) // 2
+            return _gen(chunk[:half]) + _gen(chunk[half:])
+
     outs = []
     for i in range(0, len(wavs), batch_size):
-        chunk = wavs[i:i + batch_size]
-        feats = processor.feature_extractor(chunk, sampling_rate=SAMPLING_RATE, return_tensors="pt")
-        x = feats["input_features"].to(dev, dtype=dtype)
-        gen = model.generate(input_features=x, task=task, language=language, num_beams=num_beams,
-                             max_new_tokens=max_new_tokens, return_dict_in_generate=True,
-                             output_scores=return_details)
-        texts = processor.batch_decode(gen.sequences, skip_special_tokens=True)
-        if not return_details:
-            outs.extend(t.strip() for t in texts)
-            continue
-        base = model.get_base_model() if hasattr(model, "get_base_model") else model
-        trans = base.compute_transition_scores(gen.sequences, gen.scores,
-                                               getattr(gen, "beam_indices", None), normalize_logits=num_beams == 1)
-        n_gen = trans.shape[1]
-        for seq, sc, txt in zip(gen.sequences, trans, texts):
-            gen_ids = seq[-n_gen:]
-            toks, probs = [], []
-            for tid, s in zip(gen_ids.tolist(), sc.tolist()):
-                if tid in processor.tokenizer.all_special_ids or not math.isfinite(s):
-                    continue
-                toks.append(processor.tokenizer.decode([tid]))
-                probs.append(float(np.exp(s)))
-            outs.append({"text": txt.strip(), "tokens": toks, "token_probs": probs,
-                         "confidence": float(np.mean(probs)) if probs else 0.0})
+        for gen, texts in _gen(wavs[i:i + batch_size]):
+            outs.extend(_postprocess(gen, texts, model, processor, num_beams, return_details))
+    return outs
+
+
+def _postprocess(gen, texts, model, processor, num_beams, return_details):
+    """Texte seul, ou (return_details) texte + tokens + probabilités par token + confiance moyenne."""
+    if not return_details:
+        return [t.strip() for t in texts]
+    outs = []
+    base = model.get_base_model() if hasattr(model, "get_base_model") else model
+    trans = base.compute_transition_scores(gen.sequences, gen.scores,
+                                           getattr(gen, "beam_indices", None), normalize_logits=num_beams == 1)
+    n_gen = trans.shape[1]
+    for seq, sc, txt in zip(gen.sequences, trans, texts):
+        gen_ids = seq[-n_gen:]
+        toks, probs = [], []
+        for tid, s in zip(gen_ids.tolist(), sc.tolist()):
+            if tid in processor.tokenizer.all_special_ids or not math.isfinite(s):
+                continue
+            toks.append(processor.tokenizer.decode([tid]))
+            probs.append(float(np.exp(s)))
+        outs.append({"text": txt.strip(), "tokens": toks, "token_probs": probs,
+                     "confidence": float(np.mean(probs)) if probs else 0.0})
     return outs
 
 
