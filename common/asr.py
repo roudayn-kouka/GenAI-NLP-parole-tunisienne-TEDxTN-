@@ -347,6 +347,19 @@ class GenerationWERCallback:
         return _CB()
 
 
+def _resolve_optim(name: str) -> str:
+    """Les optimiseurs bitsandbytes (*bnb*) exigent CUDA et le paquet bitsandbytes : sinon repli sur adamw_torch."""
+    if "bnb" in name or "8bit" in name:
+        try:
+            import bitsandbytes  # noqa: F401
+            if not torch.cuda.is_available():
+                raise ImportError("pas de CUDA")
+        except Exception as e:  # ImportError ou erreur d'initialisation de bitsandbytes
+            print(f"[training_args] optim={name} indisponible ({e}) -> adamw_torch")
+            return "adamw_torch"
+    return name
+
+
 def training_args(output_dir: str | Path, cfg: TrainConfig, seq2seq: bool = True, lr: float | None = None,
                   n_train: int | None = None, **overrides):
     """Arguments d'entraînement adaptés à un GPU Colab (fp16, accumulation, early stopping)."""
@@ -361,7 +374,7 @@ def training_args(output_dir: str | Path, cfg: TrainConfig, seq2seq: bool = True
         load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False,
         report_to="none", seed=cfg.seed, dataloader_num_workers=2, remove_unused_columns=False,
         gradient_checkpointing=cfg.gradient_checkpointing and not cfg.use_lora,
-        label_names=["labels"],
+        label_names=["labels"], optim=_resolve_optim(cfg.optim),
     )
     import inspect
     params = inspect.signature(Args.__init__).parameters

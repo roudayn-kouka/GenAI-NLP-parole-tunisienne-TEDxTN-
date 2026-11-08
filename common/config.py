@@ -131,6 +131,9 @@ class TrainConfig:
     early_stopping_patience: int = 3
     fp16: bool = True
     gradient_checkpointing: bool = True
+    # Optimiseur du Trainer HF. "adamw_bnb_8bit" (bitsandbytes) divise par ~4 la mémoire des états d'Adam :
+    # nécessaire pour Whisper-small en complet sur un GPU de 6 Go. Repli sur "adamw_torch" sans CUDA/bitsandbytes.
+    optim: str = os.environ.get("TEDXTN_OPTIM", "adamw_torch")
     max_audio_seconds: float = 30.0      # Whisper : fenêtre de 30 s
     min_audio_seconds: float = 0.3
     use_lora: bool = False
