@@ -20,6 +20,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-audio", action="store_true")
     ap.add_argument("--no-search", action="store_true", help="ne pas chercher les URL manquantes sur YouTube")
+    ap.add_argument("--check-urls", action="store_true",
+                    help="construire et contrôler youtube_urls.csv (durée, chaîne, titre) sans rien télécharger")
     ap.add_argument("--workers", type=int, default=4)
     a = ap.parse_args()
 
@@ -29,6 +31,15 @@ def main():
     print("Contrôle des fuites :", leak)
     if not leak["ok"]:
         sys.exit("Fuite détectée entre splits : arrêt.")
+    if a.check_urls:
+        urls = data.build_url_map(df, use_search=not a.no_search)
+        print(urls.statut.value_counts().to_string())
+        cols = ["audio_filename", "source", "duration_s", "derniere_annotation_s", "channel", "title", "motifs"]
+        bad = urls[urls.statut != "OK"]
+        if len(bad):
+            print(bad[cols].to_string(index=False))
+        print(f"-> {data.URL_MAP_FILE}")
+        return
     if not a.no_audio:
         if a.no_search:
             data.build_url_map(df, use_search=False)
