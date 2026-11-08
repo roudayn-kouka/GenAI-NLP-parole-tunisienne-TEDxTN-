@@ -12,10 +12,13 @@ mkdir -p "$OUT"
 
 if ! command -v lmplz >/dev/null 2>&1; then
   echo ">> Compilation de KenLM (≈ 3 min sur Colab)"
-  if command -v apt-get >/dev/null 2>&1; then
-    (apt-get -qq update && apt-get -qq install -y build-essential cmake libboost-system-dev \
+  if command -v apt-get >/dev/null 2>&1 && ! { command -v cmake && dpkg -s libboost-program-options-dev; } >/dev/null 2>&1; then
+    # « apt-get update » échoue dès qu'un dépôt tiers est mal signé (vu sur une machine de l'équipe) : ce n'est pas
+    # bloquant si les paquets restent installables, donc on n'arrête pas le script sur cette erreur.
+    apt-get -qq update >/dev/null 2>&1 || echo ">> apt-get update : erreurs partielles (dépôt tiers), on continue"
+    apt-get -qq install -y build-essential cmake libboost-system-dev \
       libboost-thread-dev libboost-program-options-dev libboost-test-dev libeigen3-dev zlib1g-dev \
-      libbz2-dev liblzma-dev) >/dev/null
+      libbz2-dev liblzma-dev >/dev/null
   fi
   BUILD=${KENLM_BUILD_DIR:-/tmp/kenlm}
   [ -d "$BUILD" ] || git clone -q https://github.com/kpu/kenlm "$BUILD"

@@ -31,6 +31,8 @@ Chaque entrée correspond à un commit git.
 | 15 | `notebooks/01` §5 | Après une erreur de génération, le modèle restait en VRAM : la cellule suivante (Whisper FT) échouait à son tour (`INTERNAL ASSERT FAILED ... CUDACachingAllocator`). | `try/finally` : `del model; torch.cuda.empty_cache()` même en cas d'erreur. |
 | 16 | `notebooks/01` §13 | Sans prédiction dev, la conclusion affichait « Système retenu (choisi sur le dev) » avec le premier système du test. | Conclusion chiffrée seulement pour le système `BEST` choisi sur le dev ; sinon message explicite. |
 | 17 | Machine (constat, pas de code) | w2v-BERT-2.0 en fine-tuning complet : sous WSL/WDDM, le dépassement de VRAM ne lève pas d'OOM mais déborde en mémoire partagée -> la cellule tourne à 0 % de GPU sans fin (constaté pendant 10 min). | Entraînement w2v-BERT sur Colab (notebook 01b) ; en local `RUN_CTC_FT` vaut False sous 12 Go. |
+| 18 | `scripts/build_kenlm.sh` | `apt-get update` échoue dès qu'un dépôt tiers est mal signé (dépôt Jenkins sur la machine locale) ; avec `set -e`, le script s'arrêtait (code 100) avant de compiler KenLM. | apt seulement si cmake/boost manquent ; échec de `apt-get update` non bloquant. |
+| 19 | Environnement d'exécution (constat) | `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` sous WSL : « INTERNAL ASSERT FAILED (CUDACachingAllocator.cpp:400) » dès que la VRAM se remplit. | Option non utilisée en local (gardée dans 01b : Colab est un Linux natif). |
 ## Constats sur les données (aucune modification des splits)
 
 - Train : `train.csv` du Hub contient **15 703 segments** contre 15 626 dans le papier (+77) ; dev (731) et test (842)
