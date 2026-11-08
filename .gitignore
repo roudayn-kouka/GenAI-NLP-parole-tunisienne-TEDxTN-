@@ -1,0 +1,19 @@
+# Données, audio et modèles : jamais versionnés (licence CC BY-NC-ND + taille)
+workdir/
+*.wav
+*.mp3
+*.m4a
+*.arpa
+*.bin
+*.safetensors
+*.pt
+checkpoint-*/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+.gradio/
+flagged/
