@@ -149,7 +149,7 @@ class TrainConfig:
     grad_accum: int = 2
     max_epochs: int = 10
     warmup_ratio: float = 0.05
-    eval_steps: int = 500
+    eval_steps: int = 250                # évaluation (loss + WER/chrF sur 200 segments du dev) et checkpoint
     early_stopping_patience: int = 3
     fp16: bool = True
     gradient_checkpointing: bool = True

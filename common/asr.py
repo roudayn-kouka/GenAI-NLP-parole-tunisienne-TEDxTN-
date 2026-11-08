@@ -367,13 +367,14 @@ def ctc_transcribe(model, processor, wavs: list[np.ndarray], decoder=None, batch
 # Entraînement
 # ==========================================================================
 class GenerationWERCallback:
-    """Callback : calcule le WER sur un sous-ensemble du dev à chaque évaluation
-    (courbe d'apprentissage réelle, en plus de la loss)."""
+    """Callback : calcule le WER (ASR) ou BLEU / chrF++ (traduction, kind="ast") sur un sous-ensemble du dev
+    à chaque évaluation (courbe d'apprentissage réelle, en plus de la loss)."""
 
-    def __init__(self, predict_fn, dev_wavs, dev_refs, every_eval: int = 1):
+    def __init__(self, predict_fn, dev_wavs, dev_refs, every_eval: int = 1, kind: str = "asr"):
         self.predict_fn, self.dev_wavs, self.dev_refs = predict_fn, dev_wavs, dev_refs
         self.history = []
         self.every_eval, self._n = every_eval, 0
+        self.kind = kind
 
     def as_callback(self):
         from transformers import TrainerCallback
@@ -384,11 +385,17 @@ class GenerationWERCallback:
                 outer._n += 1
                 if outer._n % outer.every_eval:
                     return
-                from .metrics import wer_cer
+                from .metrics import translation_scores, wer_cer
                 hyps = outer.predict_fn(model, outer.dev_wavs)
-                m = wer_cer(outer.dev_refs, hyps)
-                outer.history.append({"step": state.global_step, "dev_WER_subset": m["WER"], "dev_CER_subset": m["CER"]})
-                print(f"[step {state.global_step}] WER dev (sous-ensemble) = {m['WER']:.2f}  CER = {m['CER']:.2f}")
+                if outer.kind == "ast":
+                    m = translation_scores(hyps, outer.dev_refs)
+                    outer.history.append({"step": state.global_step, "dev_BLEU_subset": m["BLEU"],
+                                          "dev_chrF++_subset": m["chrF++"]})
+                    print(f"[step {state.global_step}] dev (sous-ensemble) BLEU = {m['BLEU']:.2f}  chrF++ = {m['chrF++']:.2f}")
+                else:
+                    m = wer_cer(outer.dev_refs, hyps)
+                    outer.history.append({"step": state.global_step, "dev_WER_subset": m["WER"], "dev_CER_subset": m["CER"]})
+                    print(f"[step {state.global_step}] WER dev (sous-ensemble) = {m['WER']:.2f}  CER = {m['CER']:.2f}")
                 model.train()
         return _CB()
 
