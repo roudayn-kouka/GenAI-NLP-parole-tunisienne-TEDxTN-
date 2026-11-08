@@ -102,6 +102,28 @@ BASE_MODELS = {
 }
 
 
+def env_flag(name: str, default: bool) -> bool:
+    """Interrupteur RUN_* d'un notebook, surchargeable par TEDXTN_RUN_<NAME>=0/1 (exécution non interactive)."""
+    v = os.environ.get(f"TEDXTN_RUN_{name.upper()}")
+    return default if v is None else v.strip().lower() in ("1", "true", "yes", "oui")
+
+
+def gpu_memory_gb() -> float:
+    """VRAM totale du GPU (0 sans GPU). Sert à choisir les modèles et les batchs (plans A/B du README)."""
+    try:
+        import torch
+        return torch.cuda.get_device_properties(0).total_memory / 2**30 if torch.cuda.is_available() else 0.0
+    except Exception:
+        return 0.0
+
+
+# Essai rapide de tous les chemins de code (smoke test) : petits sous-ensembles, quelques dizaines de steps.
+# Les notebooks n'utilisent alors que des talks de TRAIN (pseudo-dev / pseudo-test = talks de train tenus à part) :
+# ni le dev ni le test officiels ne sont touchés. Rediriger TEDXTN_WORKDIR / TEDXTN_RESULTS_DIR vers un dossier
+# jetable pour ne rien mélanger aux vrais résultats.
+SMOKE = os.environ.get("TEDXTN_SMOKE") == "1"
+
+
 @dataclass
 class AppModels:
     """Modèles chargés par l'interface. Chaque entrée peut être un chemin local

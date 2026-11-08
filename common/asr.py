@@ -362,15 +362,29 @@ def _resolve_optim(name: str) -> str:
 
 def training_args(output_dir: str | Path, cfg: TrainConfig, seq2seq: bool = True, lr: float | None = None,
                   n_train: int | None = None, **overrides):
-    """Arguments d'entraînement adaptés à un GPU Colab (fp16, accumulation, early stopping)."""
+    """Arguments d'entraînement adaptés à un GPU Colab (fp16, accumulation, early stopping).
+
+    Adaptation à la machine, sans toucher aux notebooks (variables d'environnement) :
+    - TEDXTN_MAX_BATCH : plafond du batch par GPU ; l'accumulation est augmentée d'autant, si bien que le batch
+      effectif (batch x accumulation) reste celui prévu (ex. 16x2 -> 4x8 sur un GPU de 6 Go) ;
+    - TEDXTN_MAX_STEPS, TEDXTN_EVAL_STEPS : essai rapide (smoke test) ou évaluations plus fréquentes."""
+    import os
     from transformers import Seq2SeqTrainingArguments, TrainingArguments
     Args = Seq2SeqTrainingArguments if seq2seq else TrainingArguments
+    bs, accum = cfg.batch_size, cfg.grad_accum
+    cap = int(os.environ.get("TEDXTN_MAX_BATCH", "0"))
+    if cap and bs > cap:
+        accum = accum * math.ceil(bs / cap)
+        bs = cap
+    eval_steps = int(os.environ.get("TEDXTN_EVAL_STEPS", cfg.eval_steps))
+    max_steps = int(os.environ.get("TEDXTN_MAX_STEPS", "-1"))
     kw = dict(
-        output_dir=str(output_dir), per_device_train_batch_size=cfg.batch_size,
-        per_device_eval_batch_size=cfg.batch_size, gradient_accumulation_steps=cfg.grad_accum,
+        output_dir=str(output_dir), per_device_train_batch_size=bs,
+        per_device_eval_batch_size=bs, gradient_accumulation_steps=accum,
         learning_rate=lr or (cfg.lora_learning_rate if cfg.use_lora else cfg.learning_rate),
-        warmup_ratio=cfg.warmup_ratio, num_train_epochs=cfg.max_epochs, fp16=cfg.fp16 and torch.cuda.is_available(),
-        eval_steps=cfg.eval_steps, save_steps=cfg.eval_steps, logging_steps=50, save_total_limit=2,
+        warmup_ratio=cfg.warmup_ratio, num_train_epochs=cfg.max_epochs, max_steps=max_steps,
+        fp16=cfg.fp16 and torch.cuda.is_available(),
+        eval_steps=eval_steps, save_steps=eval_steps, logging_steps=max(1, min(50, eval_steps // 2)), save_total_limit=2,
         load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False,
         report_to="none", seed=cfg.seed, dataloader_num_workers=2, remove_unused_columns=False,
         gradient_checkpointing=cfg.gradient_checkpointing and not cfg.use_lora,
