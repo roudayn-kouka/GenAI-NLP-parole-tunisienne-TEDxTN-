@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -169,21 +171,58 @@ def discover_urls_in_repo(token: str | None = None) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["audio_filename", "url", "source"])
 
 
-def _yt_dlp(args: list[str]) -> subprocess.CompletedProcess:
-    """YouTube bloque les IP qui enchaînent les requêtes (HTTP 429 puis « confirm you're not a bot »), y compris
-    les IP de Colab : on peut alors exporter les cookies de son navigateur (fichier Netscape) et indiquer leur
-    chemin dans YTDLP_COOKIES. YTDLP_SLEEP (s, défaut 1) espace les requêtes pour éviter le blocage."""
-    import os
-    extra = ["--cookies", os.environ["YTDLP_COOKIES"]] if os.environ.get("YTDLP_COOKIES") else []
-    extra += ["--sleep-requests", os.environ.get("YTDLP_SLEEP", "1")]
-    return subprocess.run(["yt-dlp", *extra, *args], capture_output=True, text=True)
-
-
 class YouTubeBlocked(RuntimeError):
     """YouTube refuse temporairement l'accès (429 / vérification anti-robot) : rien à voir avec l'URL."""
 
 
 _BLOCK_MARKERS = ("confirm you", "HTTP Error 429", "Too Many Requests")
+_block_lock = threading.Lock()
+_blocked_until = [0.0]   # partagé entre threads : un blocage met en pause toutes les requêtes
+
+
+def _env(name: str, default: str) -> str:
+    import os
+    return os.environ.get(name, default)
+
+
+def yt_max_parallel() -> int:
+    """Nombre maximal de requêtes yt-dlp simultanées (YTDLP_MAX_PARALLEL, défaut 2)."""
+    return max(1, int(_env("YTDLP_MAX_PARALLEL", "2")))
+
+
+def _yt_dlp(args: list[str]) -> subprocess.CompletedProcess:
+    """Appelle yt-dlp avec des options anti-blocage configurables par variables d'environnement :
+
+    YTDLP_COOKIES             fichier de cookies Netscape (YouTube bloque les IP qui enchaînent les requêtes :
+                              HTTP 429 puis « Sign in to confirm you're not a bot », y compris sur Colab)
+    YTDLP_SLEEP_REQUESTS      pause entre requêtes HTTP d'une même extraction (s, défaut 1)
+    YTDLP_SLEEP_INTERVAL      pause minimale avant chaque téléchargement (s, défaut 3)
+    YTDLP_MAX_SLEEP_INTERVAL  pause maximale (tirage aléatoire, s, défaut 8)
+    YTDLP_BLOCK_WAIT          attente après un blocage avant de reprendre la même requête (s, défaut 900)
+    YTDLP_BLOCK_RETRIES       nombre de reprises après blocage (défaut 4)
+
+    En cas de blocage, toutes les requêtes en cours attendent (pause partagée), puis reprennent là où elles
+    s'étaient arrêtées (les téléchargements partiels .part sont repris par yt-dlp)."""
+    extra = ["--cookies", _env("YTDLP_COOKIES", "")] if _env("YTDLP_COOKIES", "") else []
+    extra += ["--sleep-requests", _env("YTDLP_SLEEP_REQUESTS", "1"),
+              "--sleep-interval", _env("YTDLP_SLEEP_INTERVAL", "3"),
+              "--max-sleep-interval", _env("YTDLP_MAX_SLEEP_INTERVAL", "8")]
+    wait, retries = float(_env("YTDLP_BLOCK_WAIT", "900")), int(_env("YTDLP_BLOCK_RETRIES", "4"))
+    for attempt in range(retries + 1):
+        with _block_lock:
+            pause = _blocked_until[0] - time.time()
+        if pause > 0:
+            time.sleep(pause)
+        r = subprocess.run(["yt-dlp", *extra, *args], capture_output=True, text=True)
+        if r.returncode == 0 or not any(m in r.stderr for m in _BLOCK_MARKERS):
+            return r
+        if attempt < retries:
+            with _block_lock:
+                if _blocked_until[0] < time.time():
+                    _blocked_until[0] = time.time() + wait
+                    print(f"[yt-dlp] accès bloqué par YouTube : pause de {wait / 60:.0f} min "
+                          f"(reprise {attempt + 1}/{retries}) - {time.strftime('%H:%M:%S')}", flush=True)
+    return r
 _YT_FIELDS = "%(webpage_url)s\t%(duration)s\t%(channel)s\t%(uploader)s\t%(title)s"
 
 
@@ -193,20 +232,14 @@ def _parse_info(line: str) -> dict:
             "channel": channel if channel != "NA" else uploader, "title": title}
 
 
-def video_info(url: str, retries: int = 2) -> dict | None:
+def video_info(url: str) -> dict | None:
     """Métadonnées d'une vidéo (durée, chaîne, titre) sans téléchargement.
-    Renvoie None si la vidéo n'existe pas ; lève YouTubeBlocked si c'est l'accès qui est refusé."""
-    import time
-    err = ""
-    for i in range(retries + 1):
-        r = _yt_dlp(["--print", _YT_FIELDS, "--skip-download", "--no-playlist", url])
-        if r.returncode == 0 and r.stdout.strip():
-            return _parse_info(r.stdout.strip().splitlines()[0])
-        err = r.stderr
-        if any(m in err for m in _BLOCK_MARKERS):
-            time.sleep(5 * (i + 1))
-    if any(m in err for m in _BLOCK_MARKERS):
-        raise YouTubeBlocked(err.strip().splitlines()[-1][:200])
+    Renvoie None si la vidéo n'existe pas ; lève YouTubeBlocked si l'accès reste refusé après les reprises."""
+    r = _yt_dlp(["--print", _YT_FIELDS, "--skip-download", "--no-playlist", url])
+    if r.returncode == 0 and r.stdout.strip():
+        return _parse_info(r.stdout.strip().splitlines()[0])
+    if any(m in r.stderr for m in _BLOCK_MARKERS):
+        raise YouTubeBlocked(r.stderr.strip().splitlines()[-1][:200])
     return None
 
 
@@ -307,7 +340,7 @@ def build_url_map(df: pd.DataFrame, use_search: bool = True, verify: bool = True
     if verify:
         todo = known[(known.statut.fillna("") == "") & (known.url.fillna("") != "")]
         print(f"Contrôle de {len(todo)} URL (métadonnées YouTube)...")
-        with ThreadPoolExecutor(2) as ex:   # peu de parallélisme : YouTube bloque vite (HTTP 429)
+        with ThreadPoolExecutor(yt_max_parallel()) as ex:   # peu de parallélisme : YouTube bloque vite (HTTP 429)
             infos = list(ex.map(_safe_video_info, todo.url))
         n_blocked = sum(isinstance(i, YouTubeBlocked) for i in infos)
         if n_blocked:
@@ -325,7 +358,7 @@ def build_url_map(df: pd.DataFrame, use_search: bool = True, verify: bool = True
     missing = [t for t in talks if t not in set(known.audio_filename)]
     if use_search and missing:
         print(f"Recherche YouTube pour {len(missing)} talks sans URL...")
-        with ThreadPoolExecutor(2) as ex:
+        with ThreadPoolExecutor(yt_max_parallel()) as ex:
             found = list(ex.map(search_youtube, missing))
         rows = []
         for t, cands in zip(missing, found):
@@ -353,17 +386,20 @@ def download_talk(talk: str, url: str, out_dir: Path = AUDIO_DIR) -> Path | None
     r = _yt_dlp(["-f", "bestaudio/best", "-x", "--audio-format", "wav",
                  "--postprocessor-args", f"ffmpeg:-ac 1 -ar {SAMPLING_RATE}", "-o", tmpl, "--no-playlist", url])
     if r.returncode != 0 or not out.exists():
-        print(f"[échec] {talk}: {r.stderr.strip()[-300:]}")
+        print(f"[échec] {talk}: {r.stderr.strip()[-300:]}", flush=True)
         return None
+    print(f"[ok] {talk} ({out.stat().st_size / 1e6:.0f} Mo) - {time.strftime('%H:%M:%S')}", flush=True)
     return out
 
 
-def fetch_all_audio(df: pd.DataFrame, workers: int = 4) -> pd.DataFrame:
+def fetch_all_audio(df: pd.DataFrame, workers: int = 2) -> pd.DataFrame:
     """Télécharge tous les talks et vérifie que la durée de l'audio couvre les annotations.
-    Une durée trop courte signale une mauvaise vidéo (recherche par titre erronée)."""
+    Une durée trop courte signale une mauvaise vidéo (recherche par titre erronée).
+    Reprise : les talks déjà téléchargés sont sautés ; relancer après une interruption suffit."""
     import soundfile as sf
     urls = build_url_map(df)
     todo = urls[(urls.url.fillna("") != "") & ~urls.statut.isin(["introuvable", "exclu"])]
+    workers = min(workers, yt_max_parallel())
     with ThreadPoolExecutor(workers) as ex:
         paths = list(ex.map(lambda r: download_talk(r.audio_filename, r.url), todo.itertuples()))
     last_end = df.groupby("talk").end_time.max()

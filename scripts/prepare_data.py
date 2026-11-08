@@ -22,7 +22,7 @@ def main():
     ap.add_argument("--no-search", action="store_true", help="ne pas chercher les URL manquantes sur YouTube")
     ap.add_argument("--check-urls", action="store_true",
                     help="construire et contrôler youtube_urls.csv (durée, chaîne, titre) sans rien télécharger")
-    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--workers", type=int, default=2, help="téléchargements simultanés (plafonné par YTDLP_MAX_PARALLEL, défaut 2)")
     a = ap.parse_args()
 
     df = data.load_corpus()
