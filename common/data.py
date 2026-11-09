@@ -75,10 +75,35 @@ def load_split(split: str) -> pd.DataFrame:
     return df
 
 
-def talk_event(audio_filename: str) -> str:
-    """Extrait l'événement TEDx du nom de fichier (…_TEDxNabeul -> TEDxNabeul)."""
-    m = re.search(r"(TEDx[A-Za-z0-9]+)\s*$", audio_filename)
+def _event_key(name: str) -> str:
+    """« TEDxPasha Street » / « TEDxBebDiwén » / « TEDxYouth@SadikiCollege » -> TEDxPashaStreet, TEDxBebDiwen, ..."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return re.sub(r"[^A-Za-z0-9]", "", s)
+
+
+def talk_event(audio_filename: str, title: str | None = None) -> str:
+    """Événement TEDx d'un talk.
+
+    1. Titre YouTube s'il est connu (format des chaînes TEDx : « Titre | Orateur | TEDxÉvénement »,
+       ou « TEDxÉvénement - Orateur - Titre », ou « ... at TEDxÉvénement ») : il garde les noms en plusieurs mots
+       que le nom de fichier découpe (« TEDxPasha_Street », « TEDxEl_Ghazala_Women »).
+    2. Sinon le nom de fichier, où que soit l'événement (« TEDxCarthage_Nabil_Karoui », « TEDxLPBT_Ahmed_... »).
+    Un « TEDx » seul (« TEDx_Change_gabes ») ne désigne pas d'événement : « inconnu »."""
+    if title:
+        for pat in (r"\|\s*(TEDx[^|]+?)\s*$", r"^\s*(TEDx[\w@]+)\s+-", r"\bat\s+(TEDx[\w@]+)"):
+            m = re.search(pat, title)
+            if m and len(_event_key(m.group(1))) > 4:
+                return _event_key(m.group(1))
+    m = re.search(r"(TEDx[A-Za-z0-9]+)\s*$", audio_filename) or re.search(r"(?:^|_)(TEDx(?:Youth)?[A-Za-z0-9]+)(?=_|$)", audio_filename)
     return m.group(1) if m else "inconnu"
+
+
+def _video_titles() -> dict[str, str]:
+    if not URL_MAP_FILE.exists():
+        return {}
+    m = pd.read_csv(URL_MAP_FILE, keep_default_na=False)
+    return dict(zip(m.audio_filename, m.get("title", pd.Series([""] * len(m)))))
 
 
 def load_corpus(download: bool = True) -> pd.DataFrame:
@@ -88,7 +113,8 @@ def load_corpus(download: bool = True) -> pd.DataFrame:
         download_annotations()
     df = pd.concat([load_split(s) for s in SPLIT_FILES], ignore_index=True)
     df["talk"] = df["audio_filename"]
-    df["event"] = df["talk"].map(talk_event)
+    titles = _video_titles()   # titres YouTube contrôlés (youtube_urls.csv), s'ils existent
+    df["event"] = [talk_event(t, titles.get(t)) for t in df["talk"]]
     df["duration"] = (df["end_time"] - df["start_time"]).round(3)
     df["n_words"] = df["transcription"].str.split().str.len().fillna(0).astype(int)
     df["n_chars"] = df["transcription"].str.len()
