@@ -123,6 +123,17 @@ def gpu_memory_gb() -> float:
 # jetable pour ne rien mélanger aux vrais résultats.
 SMOKE = os.environ.get("TEDXTN_SMOKE") == "1"
 
+# Passe finale des notebooks (rendu) : un modèle dont le dossier <modèle>/final existe n'est pas réentraîné
+# (sauf TEDXTN_RETRAIN=1), et avec TEDXTN_REUSE_PREDS=1 les prédictions déjà présentes dans results/preds/
+# sont relues au lieu d'être recalculées. Les sections d'évaluation et d'analyse sont, elles, toujours exécutées.
+RETRAIN = os.environ.get("TEDXTN_RETRAIN") == "1"
+REUSE_PREDS = os.environ.get("TEDXTN_REUSE_PREDS") == "1"
+
+
+def trained(model_dir) -> bool:
+    """Le modèle final existe déjà (et on ne force pas le réentraînement)."""
+    return (Path(model_dir) / "final" / "config.json").exists() and not RETRAIN
+
 
 @dataclass
 class AppModels:

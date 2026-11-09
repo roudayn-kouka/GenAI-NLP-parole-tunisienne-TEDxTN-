@@ -564,6 +564,13 @@ def save_preds(task: str, system: str, split: str, seg_ids, hyps, refs=None, **e
     return path
 
 
+def have_preds(task: str, system: str, splits=("dev", "test")) -> bool:
+    """Vrai si TEDXTN_REUSE_PREDS=1 et que les prédictions de ce système existent pour tous les splits demandés
+    (passe finale : on relit au lieu de recalculer)."""
+    from .config import REUSE_PREDS
+    return REUSE_PREDS and all((PREDS_DIR / f"{task}__{system}__{s}.csv").exists() for s in splits)
+
+
 def load_preds(task: str, split: str) -> dict[str, pd.DataFrame]:
     """{nom_du_système: DataFrame} pour toutes les prédictions disponibles d'une tâche et d'un split."""
     out = {}
