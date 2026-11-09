@@ -96,6 +96,11 @@ def main():
                     help="gain minimal de CER (points) pour accepter un décalage")
     ap.add_argument("--exclude-cer", type=float, default=95.0,
                     help="CER (plafonné à 100) au meilleur décalage au-delà duquel le talk est exclu")
+    ap.add_argument("--talks", default="",
+                    help="contrôle approfondi d'une liste de talks (fichier, un nom par ligne) : grille pour tous")
+    ap.add_argument("--constant-share", type=float, default=1.0,
+                    help="part des segments dont le meilleur décalage est à ±1 s du décalage retenu (1.0 = tous)")
+    ap.add_argument("--tag", default="", help="suffixe des fichiers de sortie (ex. « deep »)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
@@ -104,6 +109,10 @@ def main():
     urls = pd.read_csv(data.URL_MAP_FILE, keep_default_na=False)
     offsets = data.talk_offsets()
     talks = [t for t in sorted(df.talk.unique()) if (AUDIO_DIR / f"{t}.wav").exists()]
+    forced = [l.strip() for l in Path(a.talks).read_text(encoding="utf-8").splitlines() if l.strip()] if a.talks else []
+    if forced:
+        talks = [t for t in talks if t in set(forced)]
+    sfx = f"_{a.tag}" if a.tag else ""
     print(f"{len(talks)} talks avec audio / {df.talk.nunique()}")
     tr = Transcriber(a.model, a.batch_size)
 
@@ -125,8 +134,11 @@ def main():
     med = float(per_talk.median())
     thr = med + a.margin
     print(f"CER zero-shot par talk : médiane {med:.1f} %, seuil d'anomalie {thr:.1f} %")
-    suspects = per_talk[per_talk > thr].index.tolist()
-    print(f"{len(suspects)} talks au CER anormal : {suspects}")
+    suspects = per_talk.index.tolist() if forced else per_talk[per_talk > thr].index.tolist()
+    if forced:
+        print(f"contrôle approfondi de {len(suspects)} talks ({a.n_seg} segments, ±{a.max_offset} s, pas {a.step} s)")
+    else:
+        print(f"{len(suspects)} talks au CER anormal : {suspects}")
 
     # 2) Recherche d'un décalage constant pour les talks anormaux
     grid = np.round(np.arange(-a.max_offset, a.max_offset + 1e-9, a.step), 2)
@@ -149,10 +161,19 @@ def main():
             res = pd.concat([res, gr], ignore_index=True)
             mean_by_off = gr.groupby("offset_s").CER.mean()
             best_off, best_cer = float(mean_by_off.idxmin()), float(mean_by_off.min())
-            per_seg_best = gr.loc[gr.groupby("seg_id").CER.idxmin(), "offset_s"].values
-            constant = bool(np.all(np.abs(per_seg_best - best_off) <= 1.0))
+            best_rows = gr.loc[gr.groupby("seg_id").CER.idxmin()].sort_values("start_time")
+            per_seg_best = best_rows.offset_s.values
+            share = float(np.mean(np.abs(per_seg_best - best_off) <= 1.0))
+            constant = share >= a.constant_share
+            # dérive : le meilleur décalage évolue-t-il avec la position dans le talk ? (s de décalage par minute)
+            drift = float(np.polyfit(best_rows.start_time.values / 60, per_seg_best, 1)[0]) if len(best_rows) >= 4 else np.nan
+            # le segment est-il mieux reconnu à un décalage quelconque qu'à 0 ? (gain moyen par segment)
+            seg0 = gr[np.isclose(gr.offset_s, cur)].set_index("seg_id").CER
+            seg_gain = float((seg0.loc[best_rows.seg_id].values - best_rows.CER.values).mean()) if len(seg0) else np.nan
             decision.update({"offset_meilleur": best_off, "CER_meilleur": round(best_cer, 1),
                              "offsets_par_segment": " ".join(f"{o:+.1f}" for o in per_seg_best),
+                             "part_segments_concordants": round(share, 2), "derive_s_par_min": round(drift, 3),
+                             "gain_moyen_meilleur_decalage_par_segment": round(seg_gain, 1),
                              "decalage_constant": constant})
             gain = c0 - best_cer
             # 1) décalage constant : même meilleur décalage pour les 3 segments et gain net de CER
@@ -168,9 +189,9 @@ def main():
         summary.append(decision)
         print(f"  {decision['decision']:45s} {t}  CER {decision['CER_initial']} -> {decision['CER_final']}")
     summ = pd.DataFrame(summary)
-    res.to_csv(RESULTS_DIR / "alignment_check.csv", index=False)
-    summ.to_csv(RESULTS_DIR / "alignment_summary.csv", index=False)
-    print(f"-> {RESULTS_DIR / 'alignment_summary.csv'}")
+    res.to_csv(RESULTS_DIR / f"alignment_check{sfx}.csv", index=False)
+    summ.to_csv(RESULTS_DIR / f"alignment_summary{sfx}.csv", index=False)
+    print(f"-> {RESULTS_DIR / f'alignment_summary{sfx}.csv'}")
     if a.dry_run:
         return
 

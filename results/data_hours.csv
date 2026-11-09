@@ -1,0 +1,4 @@
+split,talks_annotés,talks_utilisables,segments,segments_annotés,heures_utilisables,heures_annotées,heures_papier
+train,97,97,15703,15703,22.67,22.67,22.67
+dev,5,5,731,731,1.13,1.13,1.12
+test,6,6,842,842,1.24,1.24,1.23
