@@ -6,9 +6,11 @@
 Principe : pour chaque talk, 3 segments (début, milieu, fin) sont transcrits par Whisper zero-shot et comparés à la
 référence (CER normalisé). Le zero-shot est mauvais sur le tunisien, mais un segment bien aligné reste nettement
 meilleur qu'un segment décalé ou qu'une mauvaise vidéo. Pour un talk au CER anormal, on essaie des décalages de
--10 s à +10 s par pas de 0,5 s : si un décalage constant (le même pour les 3 segments) ramène le CER à un niveau
-normal, il est écrit dans youtube_urls.csv (colonne offset_s, appliquée par data.cut_segments) ; sinon le talk est
-marqué « exclu » (irrécupérable).
+-10 s à +10 s par pas de 0,5 s. Décision :
+- décalage constant (le même pour les 3 segments, à ±1 s) qui fait gagner au moins 15 points de CER : écrit dans
+  youtube_urls.csv (colonne offset_s, appliquée par data.cut_segments) ;
+- CER encore ≥ 95 % au meilleur décalage (transcription sans rapport avec la référence) : « exclu » ;
+- sinon : gardé (CER élevé dû à l'orateur ou au code-switching, aucun décalage démontré).
 
 Sorties : results/alignment_check.csv (par segment et par décalage testé), results/alignment_summary.csv (par talk),
 workdir/data/audio_report.csv et corpus.parquet mis à jour, heures utilisables par split.
@@ -90,6 +92,10 @@ def main():
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--margin", type=float, default=20.0,
                     help="un talk est anormal si son CER dépasse la médiane des talks de plus de MARGIN points")
+    ap.add_argument("--min-gain", type=float, default=15.0,
+                    help="gain minimal de CER (points) pour accepter un décalage")
+    ap.add_argument("--exclude-cer", type=float, default=95.0,
+                    help="CER (plafonné à 100) au meilleur décalage au-delà duquel le talk est exclu")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
@@ -148,13 +154,17 @@ def main():
             decision.update({"offset_meilleur": best_off, "CER_meilleur": round(best_cer, 1),
                              "offsets_par_segment": " ".join(f"{o:+.1f}" for o in per_seg_best),
                              "decalage_constant": constant})
-            if best_cer <= thr and constant and abs(best_off - cur) >= a.step:
+            gain = c0 - best_cer
+            # 1) décalage constant : même meilleur décalage pour les 3 segments et gain net de CER
+            if constant and abs(best_off - cur) >= a.step and gain >= a.min_gain:
                 decision.update({"offset_final": best_off, "CER_final": round(best_cer, 1),
                                  "decision": f"décalage corrigé ({best_off - cur:+.1f} s)"})
-            elif best_cer <= thr and abs(best_off - cur) < a.step:
-                decision["decision"] = "OK (CER élevé mais pas de meilleur décalage : orateur difficile)"
-            else:
+            # 2) irrécupérable : même au meilleur décalage, la transcription n'a rien à voir avec la référence
+            elif best_cer >= a.exclude_cer:
                 decision["decision"] = "exclu (irrécupérable)"
+            # 3) sinon le talk est gardé : CER élevé (orateur, débit, code-switching) mais pas de décalage démontré
+            else:
+                decision["decision"] = "OK (CER élevé, pas de décalage démontré)"
         summary.append(decision)
         print(f"  {decision['decision']:45s} {t}  CER {decision['CER_initial']} -> {decision['CER_final']}")
     summ = pd.DataFrame(summary)
