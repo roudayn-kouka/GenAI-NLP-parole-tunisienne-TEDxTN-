@@ -61,3 +61,12 @@ Chaque entrée correspond à un commit git.
   et 2 segments sans traduction dans le train. Heures : train 22,67 h, dev 1,13 h, test 1,24 h (papier : 22h40, 1h07, 1h14).
 - Aucune fuite : aucun talk partagé entre splits, aucune transcription longue (≥ 6 mots) partagée. Un seul
   chevauchement de 36 ms (train, talk Fakrouna_Rising…), négligeable.
+- Alignement (scripts/check_alignment.py, whisper-large-v3-turbo zero-shot, CER normalisé plafonné à 100) :
+  médiane des talks 58,4 % (dev 61,7 ; test 72,4 ; train 57,5). 21 talks au-dessus de médiane + 20 points.
+  Recherche de décalage (3 segments, ±10 s) puis contrôle approfondi (10 segments, ±15 s) : un seul décalage
+  constant, **Sfax_el_mezyena_Fakhri_Fourati_TEDxENIS : +9,0 s** (CER 80,9 -> 48,7 sur 3 segments, confirmé sur 10).
+  Les 20 autres : aucun décalage concordant (meilleur décalage soutenu par 10 à 30 % des segments), CER élevé dû à des
+  hallucinations du zero-shot (répétitions) ; aucun talk exclu. 5 des 8 pires talks sont de TEDxPashaStreet : à
+  revérifier avec le modèle fine-tuné (CER par talk du train). Heures utilisables = heures annotées
+  (train 22,67 h, dev 1,13 h, test 1,24 h). Contrôle énergie/durée sur 5 segments : durées exactes, 16 kHz mono ;
+  un segment très faible (train__12613, 1,1 s, -50 dBFS, 34 % de silence).
