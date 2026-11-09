@@ -60,6 +60,30 @@ class TextPairDataset(torch.utils.data.Dataset):
         return enc
 
 
+class Seq2SeqCollator:
+    """DataCollatorForSeq2Seq + `decoder_input_ids` construits à partir des labels (décalage à droite).
+
+    Nécessaire pour NLLB (M2M100) : le collator de transformers ne crée les `decoder_input_ids` que si le modèle expose
+    `prepare_decoder_input_ids_from_labels`, ce qui n'est pas le cas de M2M100 (ni d'un modèle enveloppé par PEFT).
+    Or avec `label_smoothing_factor > 0`, le Trainer retire `labels` du batch avant l'appel du modèle : celui-ci n'a
+    alors plus aucune entrée de décodeur (« You cannot specify both decoder_input_ids and decoder_inputs_embeds »)."""
+
+    def __init__(self, tok, model):
+        from transformers import DataCollatorForSeq2Seq
+        cfg = (model.get_base_model() if hasattr(model, "get_base_model") else model).config
+        self.inner = DataCollatorForSeq2Seq(tok)
+        self.pad_id, self.start_id = cfg.pad_token_id, cfg.decoder_start_token_id
+
+    def __call__(self, features):
+        b = self.inner(features)
+        lab = b["labels"].masked_fill(b["labels"] == -100, self.pad_id)
+        dec = lab.new_full(lab.shape, self.pad_id)
+        dec[:, 1:] = lab[:, :-1]
+        dec[:, 0] = self.start_id
+        b["decoder_input_ids"] = dec
+        return b
+
+
 def add_asr_noise(df: pd.DataFrame, asr_hyp_col: str, p: float = 0.5, seed: int = 42) -> pd.DataFrame:
     """Amélioration du pipeline : on entraîne la MT en partie sur des sorties ASR bruitées
     (au lieu des seules transcriptions parfaites), pour la rendre robuste aux erreurs de l'étape 1."""
