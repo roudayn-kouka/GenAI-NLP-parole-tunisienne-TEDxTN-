@@ -380,7 +380,15 @@ class GenerationWERCallback:
         from transformers import TrainerCallback
         outer = self
 
+        key = "dev_BLEU_subset" if outer.kind == "ast" else "dev_WER_subset"
+
         class _CB(TrainerCallback):
+            def on_train_begin(self, args, state, control, **kw):
+                # reprise depuis un checkpoint : les points déjà calculés sont dans state.log_history
+                # (trainer_state.json), sinon la courbe ne contiendrait que les évaluations après la reprise
+                outer.history = [{k: v for k, v in x.items() if k == "step" or k.startswith("dev_")}
+                                 for x in state.log_history if key in x]
+
             def on_evaluate(self, args, state, control, model=None, **kw):
                 outer._n += 1
                 if outer._n % outer.every_eval:
@@ -389,13 +397,14 @@ class GenerationWERCallback:
                 hyps = outer.predict_fn(model, outer.dev_wavs)
                 if outer.kind == "ast":
                     m = translation_scores(hyps, outer.dev_refs)
-                    outer.history.append({"step": state.global_step, "dev_BLEU_subset": m["BLEU"],
-                                          "dev_chrF++_subset": m["chrF++"]})
+                    rec = {"step": state.global_step, "dev_BLEU_subset": m["BLEU"], "dev_chrF++_subset": m["chrF++"]}
                     print(f"[step {state.global_step}] dev (sous-ensemble) BLEU = {m['BLEU']:.2f}  chrF++ = {m['chrF++']:.2f}")
                 else:
                     m = wer_cer(outer.dev_refs, hyps)
-                    outer.history.append({"step": state.global_step, "dev_WER_subset": m["WER"], "dev_CER_subset": m["CER"]})
+                    rec = {"step": state.global_step, "dev_WER_subset": m["WER"], "dev_CER_subset": m["CER"]}
                     print(f"[step {state.global_step}] WER dev (sous-ensemble) = {m['WER']:.2f}  CER = {m['CER']:.2f}")
+                outer.history.append(rec)
+                state.log_history.append(dict(rec))   # sauvegardé avec le checkpoint (on_evaluate précède la sauvegarde)
                 model.train()
         return _CB()
 
