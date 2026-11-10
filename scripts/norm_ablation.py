@@ -6,6 +6,8 @@
 Pour chaque règle qui distingue EVAL_NORM de RAW_NORM :
   - « seule » : RAW_NORM + cette règle (effet isolé) ;
   - « retirée » : EVAL_NORM sans cette règle (effet dans le profil complet).
+Pour les règles hors évaluation (remove_hesitations -> EVAL_NORM_NOHES, split_mixed_tokens -> convention d'écriture) :
+  - « seule » : RAW_NORM + cette règle ;  - « ajoutée » : EVAL_NORM + cette règle.
 On rapporte WER, nombre d'erreurs (S+D+I) et nombre de mots de référence : le WER est un rapport, une règle peut le
 faire monter en retirant surtout des mots bien reconnus (dénominateur) ou en créant des erreurs (numérateur).
 Exemples : segments où la règle seule ajoute des erreurs par rapport à RAW_NORM.
@@ -21,7 +23,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.config import RESULTS_DIR  # noqa: E402
-from common.text import EVAL_NORM, RAW_NORM, normalize_text  # noqa: E402
+from common.text import EVAL_NORM, EVAL_NORM_NOHES, RAW_NORM, normalize_text  # noqa: E402
 
 
 def seg_counts(refs, hyps, cfg):
@@ -48,6 +50,7 @@ def main():
     refs, hyps = p.ref.tolist(), p.hyp.tolist()
 
     rules = [k for k in vars(EVAL_NORM) if getattr(EVAL_NORM, k) != getattr(RAW_NORM, k)]
+    extra = ["remove_hesitations", "split_mixed_tokens"]   # hors EVAL_NORM
     base = seg_counts(refs, hyps, RAW_NORM)
     full = seg_counts(refs, hyps, EVAL_NORM)
 
@@ -56,18 +59,18 @@ def main():
         return e, n, 100 * e / n
 
     rows, ex = [], []
-    for name, c in [("RAW_NORM", base), ("EVAL_NORM", full)]:
+    for name, c in [("RAW_NORM", base), ("EVAL_NORM", full), ("EVAL_NORM_NOHES", seg_counts(refs, hyps, EVAL_NORM_NOHES))]:
         e, n, w = tot(c); rows.append({"config": name, "règle": "", "WER": w, "erreurs": e, "mots_ref": n})
     e0, n0, w0 = tot(base); e1, n1, w1 = tot(full)
-    for r in rules:
-        alone = seg_counts(refs, hyps, replace(RAW_NORM, **{r: getattr(EVAL_NORM, r)}))
-        wo = seg_counts(refs, hyps, replace(EVAL_NORM, **{r: getattr(RAW_NORM, r)}))
+    for r in rules + extra:
+        alone = seg_counts(refs, hyps, replace(RAW_NORM, **{r: True if r in extra else getattr(EVAL_NORM, r)}))
+        wo = seg_counts(refs, hyps, replace(EVAL_NORM, **{r: True if r in extra else getattr(RAW_NORM, r)}))
         ea, na, wa = tot(alone); ew, nw, ww = tot(wo)
         added = [i for i in range(len(p)) if alone[i][0] > base[i][0]]
         removed = [i for i in range(len(p)) if alone[i][0] < base[i][0]]
         rows.append({"config": "RAW + règle seule", "règle": r, "WER": wa, "ΔWER": wa - w0, "erreurs": ea, "Δerreurs": ea - e0,
                      "mots_ref": na, "Δmots_ref": na - n0, "segments +erreurs": len(added), "segments -erreurs": len(removed)})
-        rows.append({"config": "EVAL sans la règle", "règle": r, "WER": ww, "ΔWER": ww - w1, "erreurs": ew, "Δerreurs": ew - e1,
+        rows.append({"config": "EVAL + règle (hors éval.)" if r in extra else "EVAL sans la règle", "règle": r, "WER": ww, "ΔWER": ww - w1, "erreurs": ew, "Δerreurs": ew - e1,
                      "mots_ref": nw, "Δmots_ref": nw - n1})
         for i in sorted(added, key=lambda i: alone[i][0] - base[i][0], reverse=True)[: a.n_examples]:
             ex.append({"règle": r, "seg_id": p.seg_id[i], "erreurs_raw": base[i][0], "erreurs_règle": alone[i][0],

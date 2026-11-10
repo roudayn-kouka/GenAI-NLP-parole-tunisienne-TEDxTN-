@@ -1,19 +1,20 @@
 config,règle,WER,erreurs,mots_ref,ΔWER,Δerreurs,Δmots_ref,segments +erreurs,segments -erreurs
 RAW_NORM,,34.79709001665352,3970,11409,,,,,
-EVAL_NORM,,35.18045935107546,3860,10972,,,,,
+EVAL_NORM,,34.54290472434043,3941,11409,,,,,
+EVAL_NORM_NOHES,,35.158527696793,3859,10976,,,,,
 RAW + règle seule,remove_diacritics,34.79709001665352,3970,11409,0.0,0.0,0.0,0.0,0.0
-EVAL sans la règle,remove_diacritics,35.18045935107546,3860,10972,0.0,0.0,0.0,,
+EVAL sans la règle,remove_diacritics,34.54290472434043,3941,11409,0.0,0.0,0.0,,
 RAW + règle seule,normalize_alef,34.54290472434043,3941,11409,-0.25418529231308895,-29.0,0.0,0.0,28.0
-EVAL sans la règle,normalize_alef,35.55313944006524,3924,11037,0.37268008898977456,64.0,65.0,,
+EVAL sans la règle,normalize_alef,34.79709001665352,3970,11409,0.25418529231308895,29.0,0.0,,
 RAW + règle seule,normalize_ya,34.79709001665352,3970,11409,0.0,0.0,0.0,0.0,0.0
-EVAL sans la règle,normalize_ya,35.18045935107546,3860,10972,0.0,0.0,0.0,,
+EVAL sans la règle,normalize_ya,34.54290472434043,3941,11409,0.0,0.0,0.0,,
 RAW + règle seule,normalize_gaf,34.79709001665352,3970,11409,0.0,0.0,0.0,0.0,0.0
-EVAL sans la règle,normalize_gaf,35.18045935107546,3860,10972,0.0,0.0,0.0,,
+EVAL sans la règle,normalize_gaf,34.54290472434043,3941,11409,0.0,0.0,0.0,,
 RAW + règle seule,arabic_digits,34.79709001665352,3970,11409,0.0,0.0,0.0,0.0,0.0
-EVAL sans la règle,arabic_digits,35.18045935107546,3860,10972,0.0,0.0,0.0,,
+EVAL sans la règle,arabic_digits,34.54290472434043,3941,11409,0.0,0.0,0.0,,
 RAW + règle seule,collapse_elongation,34.79709001665352,3970,11409,0.0,0.0,0.0,0.0,0.0
-EVAL sans la règle,collapse_elongation,35.18045935107546,3860,10972,0.0,0.0,0.0,,
+EVAL sans la règle,collapse_elongation,34.54290472434043,3941,11409,0.0,0.0,0.0,,
+RAW + règle seule,remove_hesitations,35.267857142857146,3871,10976,0.4707671262036257,-99.0,-433.0,0.0,83.0
+EVAL + règle (hors éval.),remove_hesitations,35.158527696793,3859,10976,0.6156229724525701,-82.0,-433.0,,
 RAW + règle seule,split_mixed_tokens,34.8233850468928,3973,11409,0.02629503023928237,3.0,0.0,4.0,2.0
-EVAL sans la règle,split_mixed_tokens,35.15311702515494,3857,10972,-0.02734232592052166,-3.0,0.0,,
-RAW + règle seule,remove_hesitations,35.52595814079913,3921,11037,0.7288681241456132,-49.0,-372.0,0.0,44.0
-EVAL sans la règle,remove_hesitations,34.56919975457972,3944,11409,-0.6112595964957421,84.0,437.0,,
+EVAL + règle (hors éval.),split_mixed_tokens,34.56919975457972,3944,11409,0.026295030239289474,3.0,0.0,,

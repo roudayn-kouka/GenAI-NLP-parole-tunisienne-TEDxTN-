@@ -88,3 +88,6 @@ Chaque entrée correspond à un commit git.
   (أ 39, آم 12, إم 7, أم 4, أه 2, إ 1). `split_mixed_tokens` : +3 erreurs (+0,03 point ; 4 segments, mots hybrides de
   l'hypothèse coupés en deux : ingésات, développéتها, bonك). `normalize_alef` : -29 erreurs. Sans effet sur ce dev :
   diacritiques, ya, gaf, chiffres, allongements.
+- Normalisation après décision (EVAL_NORM orthographique, hésitations sur la forme d'origine ; dev,
+  whisper-small-ft) : brut 34,80 % (3 970 erreurs / 11 409 mots), normalisé 34,54 % (3 941 / 11 409 ; seul l'alef
+  agit : -29 erreurs), sans hésitations 35,16 % (3 859 / 10 976 : -433 mots de référence, -82 erreurs).

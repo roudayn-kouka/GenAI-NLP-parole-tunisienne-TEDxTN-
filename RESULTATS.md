@@ -18,6 +18,24 @@
 - Courbe de suivi : les WER des steps 250 à 750 ont été perdus lors d'un arrêt volontaire de l'entraînement (bug
   corrigé, CHANGELOG_EXECUTION.md n° 46) ; ceux des steps 1000 et 1250 ont été recalculés depuis les checkpoints.
 
+### Normalisation d'évaluation (décidée sur le dev, avant toute évaluation sur le test)
+
+- Trois mesures : **WER brut** (`RAW_NORM`, protocole du papier : ponctuation et casse latine ignorées), **WER
+  normalisé** (`EVAL_NORM` : orthographe seule, c.-à-d. alef, ya, diacritiques, /g/, chiffres, allongements) et
+  **WER sans hésitations** (`EVAL_NORM_NOHES` : `EVAL_NORM` + hésitations retirées de la référence et de
+  l'hypothèse, repérées sur la forme d'origine du mot ; « أم » est un mot et reste).
+- Retirées de l'évaluation après une ablation règle par règle sur le dev (`scripts/norm_ablation.py`,
+  `results/norm_ablation_dev.csv`) : la frontière de script (`الfumoir → ال fumoir`) est asymétrique (les références
+  écrivent les emprunts en arabe ; seules les hypothèses ont des mots hybrides, coupés en deux erreurs) ; elle reste
+  une convention d'écriture (notebook 03). Le retrait des hésitations fait **monter** le WER (whisper-small-ft, dev :
+  -82 erreurs mais -433 mots de référence) : les hésitations sont surtout bien reconnues, c'est un effet de
+  dénominateur ; d'où une colonne à part.
+- **Constat (dev, whisper-small-ft)** : la normalisation orthographique seule ne fait gagner que **0,26 point**
+  (WER brut 34,80 % → normalisé 34,54 % ; 29 erreurs de moins sur 3 970, toutes dues à l'alef). Les erreurs du
+  modèle portent donc sur le fond (mots, emprunts, segmentation) bien plus que sur l'orthographe. **À confirmer sur
+  le test.** (Le chiffre de 34,57 % cité avant la décision venait d'une configuration intermédiaire : ancienne
+  `EVAL_NORM` sans les hésitations mais avec la frontière de script.)
+
 ### Écarts au protocole du papier (à compléter)
 
 - Train : 15 703 segments dans `train.csv` du Hub contre 15 626 dans le papier (+77), gardés.
