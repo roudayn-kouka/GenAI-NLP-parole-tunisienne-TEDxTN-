@@ -28,7 +28,7 @@ if [ "${1:-}" != "--fg" ]; then
 fi
 COMMIT_E2E2=$2
 source /root/tedxtn-env.sh
-GIT="git -c safe.directory=* -C $PROJ"
+git_() { git -c safe.directory="*" -C "$PROJ" "$@"; }   # chemin avec espace : fonction, pas variable
 
 if pgrep -f "run_01_whisper.sh --fg" > /dev/null; then
   echo "=== attente de la fin de run_01_whisper.sh $(date '+%F %T')"
@@ -61,13 +61,13 @@ run() {  # run <dossier du code> <sortie>
 
 # 1. E2E-2 (code figé)
 CODE=/root/runs/code_$COMMIT_E2E2
-rm -rf "$CODE" && mkdir -p "$CODE" && $GIT archive "$COMMIT_E2E2" | tar -x -C "$CODE" || { echo "git archive impossible"; exit 1; }
+rm -rf "$CODE" && mkdir -p "$CODE" && git_ archive "$COMMIT_E2E2" | tar -x -C "$CODE" || { echo "git archive impossible"; exit 1; }
 TEDXTN_RUN_NLLB_FT=0 TEDXTN_RUN_E2E=1 TEDXTN_RUN_E2E1=0 TEDXTN_RUN_E2E2=1 run "$CODE" 02_e2e2
 
 # 2. C2 (code du projet, une fois validé)
 echo "=== C2 : attente de /root/runs/C2_READY = HEAD du projet $(date '+%F %T')"
 while true; do
-  head=$($GIT rev-parse HEAD 2>/dev/null)
+  head=$(git_ rev-parse HEAD 2>/dev/null)
   [ -f /root/runs/C2_READY ] && [ "$(cat /root/runs/C2_READY)" = "$head" ] && break
   sleep 120
 done
