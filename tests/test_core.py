@@ -46,6 +46,20 @@ def test_hesitations():
     assert not text.EVAL_NORM.remove_hesitations and not text.EVAL_NORM.split_mixed_tokens
 
 
+def test_pipeline_names():
+    """Nom des cascades avec ASR source ; refus d'une cascade faite avec un autre ASR que l'asr_best."""
+    from common import data
+    n = data.pipeline_name("C2", "whisper-small-ft", "nllb-lora")
+    assert n == "C2-[whisper-small-ft]->nllb-lora" and data.pipeline_source(n) == "whisper-small-ft"
+    assert ">" not in data.pred_path("ast", n, "test").name                  # nom de fichier valide sous Windows
+    assert data.stale_pipeline(n, asr_best="whisper-small-ft") is None
+    assert data.stale_pipeline(n, asr_best="w2v-bert-2.0-ft+kenlm")           # autre ASR : refusé
+    assert data.stale_pipeline("C4-[whisper-small-ft+llm]->llm", asr_best="whisper-small-ft") is None
+    assert data.stale_pipeline("C2-[ref]->nllb-lora", asr_best="autre") is None   # oracle : indépendant de l'ASR
+    assert data.stale_pipeline("C2-asr->nllb-ft", asr_best="whisper-small-ft")   # ancien format : refusé
+    assert data.stale_pipeline("E2E-2-whisper-small-from-asr", asr_best="x") is None
+
+
 def test_cross_script():
     assert text.is_script_variant("circulation", "سيركيلاسيون")
     assert text.is_script_variant("الفيموار", "fumoir")

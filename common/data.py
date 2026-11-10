@@ -550,8 +550,51 @@ def load_json(path: Path, default=None):
 PREDS_DIR = RESULTS_DIR / "preds"
 
 
+def pred_path(task: str, system: str, split: str) -> Path:
+    """results/preds/<task>__<system>__<split>.csv. « -> » est écrit « → » dans le nom du fichier : « > » est
+    interdit dans un nom de fichier Windows (results/ est sur le disque C:)."""
+    return PREDS_DIR / f"{task}__{system.replace('->', '→')}__{split}.csv"
+
+
+def pipeline_name(stage: str, source: str, mt: str) -> str:
+    """Nom d'un système en cascade, avec sa source : C2-[whisper-small-ft]->nllb-lora ; source « ref » pour
+    l'oracle (transcriptions de référence) ; « <asr>+llm » si la sortie ASR a été corrigée par le LLM."""
+    return f"{stage}-[{source}]->{mt}"
+
+
+_PIPELINE_SOURCE = re.compile(r"^[A-Z]\d*-\[([^\]]+)\]->")
+
+
+def pipeline_source(system: str) -> str | None:
+    m = _PIPELINE_SOURCE.match(system)
+    return m.group(1) if m else None
+
+
+def current_asr_best() -> str | None:
+    """Système ASR retenu sur le dev par le notebook 01 (models/asr_best/SOURCE.txt)."""
+    from .config import MODELS_DIR
+    f = MODELS_DIR / "asr_best" / "SOURCE.txt"
+    return f.read_text().strip() if f.exists() else None
+
+
+def stale_pipeline(system: str, asr_best: str | None = None) -> str | None:
+    """Raison de refuser des prédictions de cascade dont l'ASR source n'est pas l'asr_best actuel (None si elles
+    sont utilisables). Systèmes directs et ASR (sans « -> ») : toujours utilisables ; oracle (« [ref] ») aussi."""
+    if "->" not in system:
+        return None
+    src = pipeline_source(system)
+    if src is None:
+        return "nom sans ASR source (ancien format)"
+    if src == "ref":
+        return None
+    best = asr_best if asr_best is not None else current_asr_best()
+    if best is None:
+        return "asr_best inconnu (notebook 01 non exécuté)"
+    return None if src.split("+")[0] == best else f"ASR source {src.split('+')[0]} != asr_best {best}"
+
+
 def save_preds(task: str, system: str, split: str, seg_ids, hyps, refs=None, **extra_cols) -> Path:
-    """Enregistre les sorties d'un système : results/preds/<task>__<system>__<split>.csv.
+    """Enregistre les sorties d'un système : results/preds/<task>__<system>__<split>.csv (voir pred_path).
     Chaque membre de l'équipe peut produire ses fichiers ; les sections d'évaluation les rassemblent."""
     PREDS_DIR.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame({"seg_id": list(seg_ids), "hyp": list(hyps)})
@@ -559,21 +602,34 @@ def save_preds(task: str, system: str, split: str, seg_ids, hyps, refs=None, **e
         df["ref"] = list(refs)
     for k, v in extra_cols.items():
         df[k] = list(v)
-    path = PREDS_DIR / f"{task}__{system}__{split}.csv"
+    path = pred_path(task, system, split)
     df.to_csv(path, index=False)
     return path
 
 
 def have_preds(task: str, system: str, splits=("dev", "test")) -> bool:
     """Vrai si TEDXTN_REUSE_PREDS=1 et que les prédictions de ce système existent pour tous les splits demandés
-    (passe finale : on relit au lieu de recalculer)."""
+    (passe finale : on relit au lieu de recalculer). Refus (faux) pour une cascade dont l'ASR source n'est pas
+    l'asr_best actuel."""
     from .config import REUSE_PREDS
-    return REUSE_PREDS and all((PREDS_DIR / f"{task}__{system}__{s}.csv").exists() for s in splits)
+    if not REUSE_PREDS:
+        return False
+    why = stale_pipeline(system)
+    if why:
+        print(f"prédictions {system} non relues : {why}")
+        return False
+    return all(pred_path(task, system, s).exists() for s in splits)
 
 
 def load_preds(task: str, split: str) -> dict[str, pd.DataFrame]:
-    """{nom_du_système: DataFrame} pour toutes les prédictions disponibles d'une tâche et d'un split."""
+    """{nom_du_système: DataFrame} pour toutes les prédictions disponibles d'une tâche et d'un split.
+    Les cascades dont l'ASR source n'est pas l'asr_best actuel sont écartées (et signalées)."""
     out = {}
     for p in sorted(PREDS_DIR.glob(f"{task}__*__{split}.csv")):
-        out[p.stem.split("__")[1]] = pd.read_csv(p, keep_default_na=False)
+        system = p.stem.split("__")[1].replace("→", "->")
+        why = stale_pipeline(system)
+        if why:
+            print(f"{p.name} écarté : {why}")
+            continue
+        out[system] = pd.read_csv(p, keep_default_na=False)
     return out
