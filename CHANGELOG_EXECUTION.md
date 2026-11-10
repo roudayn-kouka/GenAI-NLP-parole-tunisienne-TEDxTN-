@@ -60,6 +60,8 @@ Chaque entrée correspond à un commit git.
 | 44 | `notebooks/01` §9.5 | Pas d'analyse des talks difficiles repérés à l'alignement. | Section 9.5 : WER/CER par talk (dev, test, train signalés + 20 témoins), écart à la moyenne du split, SNR estimé, débit, CMI, mots latins, région ; corrélations de Spearman ; `results/01_hard_talks.csv`. |
 | 45 | `notebooks/01b` | Ordre d'écriture de la copie de reprise fixé à l'avance alors que l'espace Drive disponible n'est pas connu. | Choix automatique d'après le quota lu par l'API : ≥ 12 Go disponibles pour nos fichiers -> ordre sûr (copie temporaire, suppression définitive de l'ancienne, renommage ; pic ≈ 11 Go), sinon ordre économe (pic ≈ 7,6 Go) ; arrêt avec message si l'espace ne suffit même pas ; nettoyage des copies temporaires incomplètes ; tailles réelles affichées à la fin. |
 | 46 | `common/asr.py` (`GenerationWERCallback`), `scripts/recompute_dev_wer.py`, `scripts/run_01_whisper.sh` | Les WER dev (sous-ensemble de 200 segments) calculés à chaque évaluation n'étaient gardés qu'en mémoire : à l'arrêt volontaire de Whisper-small (09/11, 19:18, après `checkpoint-1250`), les points 250 à 1250 ont été perdus ; après une reprise, la courbe n'aurait contenu que les évaluations postérieures. | Chaque point est aussi ajouté à `state.log_history` (donc à `trainer_state.json` de chaque checkpoint) et rechargé par `on_train_begin` à la reprise. `recompute_dev_wer.py` recalcule les points des checkpoints encore présents (1000, 1250 : mêmes 200 segments dev, poids fp32, glouton), marqués `recalcule` ; 250 à 750 non récupérables (checkpoints supprimés par la rotation). `run_01_whisper.sh` : reprise + inférence + baselines en une commande. |
+| 47 | `notebooks/02` §6 | E2E-1 et E2E-2 dans la même cellule, toujours enchaînés, et exécutés avant C2 : impossible de ne lancer que l'E2E-2 après C2 sur un GPU qui ne fait qu'un entraînement par nuit. | Interrupteurs `TEDXTN_RUN_E2E1` / `TEDXTN_RUN_E2E2` (par défaut : valeur de `RUN_E2E`). `scripts/run_02_c2_e2e2.sh` : C2 puis E2E-2, autres sections coupées. |
+| 48 | `scripts/norm_ablation.py` | WER normalisé (EVAL_NORM) du dev plus élevé que le WER brut (35,18 contre 34,80, whisper-small-ft). | Ablation règle par règle (RAW + règle seule ; EVAL sans la règle) avec erreurs et mots de référence ; `results/norm_ablation_dev*.csv`. Constat dans la section des données ci-dessous ; EVAL_NORM inchangé en attendant la décision. |
 ## Constats sur les données (aucune modification des splits)
 
 - Train : `train.csv` du Hub contient **15 703 segments** contre 15 626 dans le papier (+77) ; dev (731) et test (842)
@@ -76,3 +78,10 @@ Chaque entrée correspond à un commit git.
   revérifier avec le modèle fine-tuné (CER par talk du train). Heures utilisables = heures annotées
   (train 22,67 h, dev 1,13 h, test 1,24 h). Contrôle énergie/durée sur 5 segments : durées exactes, 16 kHz mono ;
   un segment très faible (train__12613, 1,1 s, -50 dBFS, 34 % de silence).
+- Normalisation (dev, whisper-small-ft, 731 segments, `scripts/norm_ablation.py`) : RAW 34,80 % (3 970 erreurs /
+  11 409 mots), EVAL 35,18 % (3 860 / 10 972). La hausse vient de `remove_hesitations` : seule, elle retire 372 mots de
+  référence (dont 359 « آ ») mais seulement 49 erreurs (aucun segment avec plus d'erreurs) -> +0,73 point, effet de
+  dénominateur (hésitations surtout bien reconnues). Avec `normalize_alef`, 65 mots de plus deviennent des hésitations
+  (أ 39, آم 12, إم 7, أم 4, أه 2, إ 1). `split_mixed_tokens` : +3 erreurs (+0,03 point ; 4 segments, mots hybrides de
+  l'hypothèse coupés en deux : ingésات, développéتها, bonك). `normalize_alef` : -29 erreurs. Sans effet sur ce dev :
+  diacritiques, ya, gaf, chiffres, allongements.
