@@ -29,7 +29,7 @@ import numpy as np
 
 from .config import AppModels, LM_DIR, SAMPLING_RATE, TARGET_LANGUAGES
 from .data import load_audio
-from .text import EVAL_NORM, cmi, code_switch_html, code_switch_stats, normalize_text, segment_type
+from .text import WRITING_NORM, cmi, code_switch_html, code_switch_stats, normalize_text, segment_type
 
 MAX_CHUNK_S = 25.0
 
@@ -596,7 +596,7 @@ class TunisianSpeechPipeline:
 
         # ---------------- 6. Normalisation ----------------
         def s_norm(st):
-            norm, trace = normalize_text(res.transcript, EVAL_NORM, return_trace=True)
+            norm, trace = normalize_text(res.transcript, WRITING_NORM, return_trace=True)   # convention d'écriture (notebook 03)
             res.transcript_normalized = norm
             st.summary = f"{len(trace)} règle(s) appliquée(s)" if trace else "aucune règle nécessaire"
             items = "".join(f"<li><b dir='ltr'>{_ltr_label(t['rule'])}</b>{diff_html(t['before'], t['after'])}</li>" for t in trace)

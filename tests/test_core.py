@@ -28,9 +28,22 @@ def test_normalization():
     s = "أنا مشيت للـ hôtel برشاااا !"
     n = text.normalize_text(s)
     assert "أ" not in n and "!" not in n and "برشا" in n and "ـ" not in n
-    assert text.normalize_text("الfumoir") == "ال fumoir"
+    assert text.normalize_text("الfumoir") == "الfumoir"                      # évaluation : pas de coupure
+    assert text.normalize_text("الfumoir", text.WRITING_NORM) == "ال fumoir"  # convention d'écriture (notebook 03)
     n2, trace = text.normalize_text(s, return_trace=True)
     assert n2 == n and len(trace) >= 3
+
+
+def test_hesitations():
+    """Hésitations repérées sur la forme d'origine : « أم » est un mot (gardé), « آم » une hésitation (retirée),
+    même si la normalisation de l'alef les rend identiques ensuite (ام)."""
+    nohes = text.EVAL_NORM_NOHES
+    assert text.normalize_text("أم الدنيا", nohes) == "ام الدنيا"
+    assert text.normalize_text("آم الدنيا", nohes) == "الدنيا"
+    assert text.normalize_text("آم الدنيا") == "ام الدنيا"                   # EVAL_NORM : hésitations gardées
+    assert text.normalize_text("آ، إم أه اه أ إ euh ممممم باهي", nohes) == "باهي"
+    assert text.normalize_text("أنا أول واحد", nohes) == "انا اول واحد"      # mots commençant par أ gardés
+    assert not text.EVAL_NORM.remove_hesitations and not text.EVAL_NORM.split_mixed_tokens
 
 
 def test_cross_script():

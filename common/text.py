@@ -26,8 +26,10 @@ DIGIT = re.compile(r"[0-9٠-٩۰-۹]")
 TASHKEEL = re.compile(r"[ً-ْٰٓ-ٟۖ-ۭ]")
 TATWEEL = "ـ"
 
-# Hésitations / marques d'oralité fréquentes dans TEDxTN (cf. Table 4 du papier : "آ" = hesitation)
-HESITATIONS = {"آ", "ا", "اا", "آآ", "ااا", "ام", "امم", "ممم", "مم", "هم", "همم", "اه", "آه", "إه",
+# Hésitations / marques d'oralité fréquentes dans TEDxTN (cf. Table 4 du papier : "آ" = hesitation).
+# Formes d'ORIGINE (avant normalisation de l'alef) : « أم » n'en fait pas partie (mot), « آم » / « إم » oui.
+HESITATIONS = {"آ", "أ", "إ", "آم", "إم", "أه", "اه", "آه", "إه",
+               "ا", "اا", "آآ", "ااا", "ام", "امم", "ممم", "مم", "هم", "همم",
                "euh", "eh", "hmm", "hm", "mmm", "uh", "um", "ah", "bah", "ben"}
 
 # Annotations éventuelles entre crochets/chevrons : [rire], <bruit>, (inaudible)
@@ -144,8 +146,11 @@ def code_switch_stats(texts: Iterable[str]) -> dict:
 class NormConfig:
     """Conventions de normalisation (documentées dans le notebook 03).
 
-    Profil 'eval' (par défaut) : utilisé pour le WER/CER normalisé. Il neutralise
-    les variations qui ne changent pas le mot prononcé.
+    Profil par défaut (= EVAL_NORM) : normalisation orthographique seule, utilisée pour le WER/CER normalisé.
+    Elle neutralise les variations qui ne changent pas le mot prononcé, sans retirer de mots ni en couper :
+    - remove_hesitations : variante EVAL_NORM_NOHES, rapportée à part (« WER sans hésitations ») ;
+    - split_mixed_tokens : convention d'écriture (notebook 03, WRITING_NORM), pas d'évaluation, car la règle est
+      asymétrique (les références écrivent les emprunts en arabe, seules les hypothèses ont des mots hybrides).
     """
     remove_brackets: bool = True         # [rire], <bruit>
     remove_diacritics: bool = True       # harakat + tatweel
@@ -160,8 +165,8 @@ class NormConfig:
     lowercase_latin: bool = True
     strip_latin_accents: bool = False    # é -> e (option : erreurs d'accents fréquentes)
     collapse_elongation: bool = True     # برشاااا -> برشا, cooool -> cool
-    split_mixed_tokens: bool = True      # الfumoir -> ال fumoir (frontière de script)
-    remove_hesitations: bool = True      # آ, euh, ممم
+    split_mixed_tokens: bool = False     # الfumoir -> ال fumoir (frontière de script) : convention d'écriture
+    remove_hesitations: bool = False     # آ, euh, ممم (forme d'origine du token) : EVAL_NORM_NOHES
     loanword_lexicon: dict | None = None  # {"سيركيلاسيون": "circulation"} (option, cf. notebook 03)
 
     def to_dict(self) -> dict:
@@ -170,11 +175,21 @@ class NormConfig:
         return d
 
 
-EVAL_NORM = NormConfig()
+EVAL_NORM = NormConfig()                                   # WER normalisé : orthographe seule
+EVAL_NORM_NOHES = NormConfig(remove_hesitations=True)      # WER sans hésitations : EVAL_NORM + hésitations retirées
+WRITING_NORM = NormConfig(split_mixed_tokens=True)         # convention d'écriture (notebook 03, interface)
 RAW_NORM = NormConfig(  # proche du protocole du papier : ponctuation retirée, casse latine ignorée
     remove_diacritics=False, normalize_alef=False, normalize_ya=False, normalize_gaf=False,
     arabic_digits=False, collapse_elongation=False, split_mixed_tokens=False, remove_hesitations=False,
 )
+
+
+def is_hesitation(tok: str) -> bool:
+    """Hésitation repérée sur la forme d'origine du token (avant normalisation de l'alef) : ponctuation,
+    diacritiques et tatweel ignorés, casse latine ignorée, allongements (3+ lettres répétées) ramenés à 2.
+    Ainsi « آم » (hésitation) est retiré mais « أم » (mot) est gardé, même si l'alef est normalisé ensuite."""
+    t = TASHKEEL.sub("", PUNCT.sub("", tok)).replace(TATWEEL, "").lower()
+    return bool(t) and (t in HESITATIONS or re.sub(r"(.)\1{2,}", r"\1\1", t) in HESITATIONS)
 
 _SCRIPT_BOUNDARY = re.compile(
     r"(?<=[ء-يٱ-ۓ])(?=[A-Za-zÀ-ɏ])|(?<=[A-Za-zÀ-ɏ])(?=[ء-يٱ-ۓ])"
@@ -202,6 +217,8 @@ def normalize_text(text: str, cfg: NormConfig = EVAL_NORM, return_trace: bool = 
     s = unicodedata.normalize("NFC", str(text))
     if cfg.remove_brackets:
         s = step("annotations entre crochets", lambda x: BRACKETED.sub(" ", x), s)
+    if cfg.remove_hesitations:   # sur la forme d'origine, avant l'alef : « أم » reste, « آم » part
+        s = step("hésitations", lambda x: " ".join(w for w in x.split() if not is_hesitation(w)), s)
     if cfg.remove_diacritics:
         s = step("diacritiques et tatweel", lambda x: TASHKEEL.sub("", x).replace(TATWEEL, ""), s)
     if cfg.normalize_alef:
@@ -236,8 +253,6 @@ def normalize_text(text: str, cfg: NormConfig = EVAL_NORM, return_trace: bool = 
         lex = cfg.loanword_lexicon
         s = step("lexique d'emprunts (script unifié)",
                  lambda x: " ".join(lex.get(w, w) for w in x.split()), s)
-    if cfg.remove_hesitations:
-        s = step("hésitations", lambda x: " ".join(w for w in x.split() if w not in HESITATIONS), s)
     s = re.sub(r"\s+", " ", s).strip()
     return (s, trace) if return_trace else s
 
