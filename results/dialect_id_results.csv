@@ -1,0 +1,7 @@
+tâche,protocole,accuracy,précision macro,rappel macro,F1 macro
+région (texte),classe majoritaire,0.507,0.127,0.25,0.168
+région (texte),GroupKFold par talk (4 plis),0.355,0.258,0.26,0.258
+région (texte),"KFold aléatoire (FUITE, pour comparaison)",0.598,0.526,0.572,0.543
+région (texte),GroupKFold + vote par talk,0.424,0.18,0.22,0.19
+région (audio),GroupKFold par talk (4 plis),0.607,0.499,0.472,0.48
+type de code-switching (audio),train → test officiel,0.741,0.673,0.712,0.689

@@ -1,2 +1,6 @@
 système,type,BLEU,IC95 BLEU,BLEU sacre,chrF++,COMET,segments
+C2-[whisper-small-ft]->nllb-lora,pipeline,21.05,[19.7 ; 22.4],20.83,45.29,,730
+C3-[whisper-small-ft]->nllb-lora-asrnoise,pipeline,20.65,[19.2 ; 22.1],20.41,45.02,,730
 E2E-2-whisper-small-from-asr,direct,19.08,[17.4 ; 20.6],18.8,43.61,,730
+C1-[whisper-small-ft]->nllb-zeroshot,pipeline,8.83,[7.7 ; 10.1],7.96,31.19,,730
+C4-[whisper-small-ft]->llm,pipeline,6.13,[5.2 ; 7.0],5.32,27.46,,730

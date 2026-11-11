@@ -1,51 +1,51 @@
 talk,split,event,région,difficile (alignement),segments,WER,CER,débit (car/s),CMI,mots latins (%),SNR estimé (dB)
-Gahaf_mode_travelling_a_journey_in_search_of_truth_Elyes_Alias_Gahaf_Tounsi_TEDxENIB,dev,TEDxENIB,Nord,False,139,40.0,18.64,12.2,13.75,18.31,23.14
-Life_of_a_Rubiks_Cube_in_Tunisia_Mahmoud_Ibrahim_TEDxPiloteAriana,dev,TEDxPiloteAriana,Grand Tunis,False,140,39.51,18.09,16.16,18.3,19.85,24.37
-Obstacles_what_obstacles_Dhouha_Boukadi_at_TEDxCarthageWomen,dev,TEDxCarthageWomen,Grand Tunis,False,108,23.41,9.12,14.4,15.72,38.76,35.11
-The_harmony_in_chaos_Belkis_Anane_TEDxDjerba,dev,TEDxDjerba,Sud,True,159,42.54,20.9,13.97,15.86,17.37,18.5
-We_live_until_we_die_and_we_dont_live_while_I_am_dead_inside_Mohamed_Ali_Ben_Hadji_TEDxUniversityofCarthage,dev,TEDxUniversityofCarthage,Grand Tunis,False,185,26.78,11.62,13.31,18.9,24.03,28.75
-Be_the_woman_you_always_wanted_to_be_Sarah_Arbi_TEDxJendoubaVille,test,TEDxJendoubaVille,Nord,False,100,22.51,7.76,14.13,11.66,19.51,24.96
-La_Reconversion_Vers_La_Passion_Teyssir_Ksouri_TEDxBebDiwen,test,TEDxBebDiwen,Sud,False,170,63.77,38.08,13.59,19.98,30.66,16.59
-Pink_Banana_Good_News_from_Tunisia_Raya_Ben_Guiza_at_TEDxCarthageWomen,test,TEDxCarthageWomen,Grand Tunis,True,134,18.76,7.75,14.12,15.09,64.46,28.29
-TEDx_Ooreedo_Nizar,test,inconnu,,False,109,18.86,8.69,13.83,19.24,59.81,34.43
-The_invisible_war_of_leadership_Achref_Aouadi_TEDxDjerba,test,TEDxDjerba,Sud,False,194,42.99,21.73,13.32,15.95,17.82,24.24
-What_I_can_do_in_Tunisia_Rabii_Ben_Brahim_TEDxDjerba,test,TEDxDjerba,Sud,False,135,32.48,13.38,13.18,12.31,13.41,20.14
-BLUE_TN_The_True_Story_Mayssa_Sandli_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,84.56,56.69,13.05,18.77,27.94,3.81
-Be_diamond_Ala_Eddine_Arbi_TEDxPolytechSousse,train,TEDxPolytechSousse,Sahel,False,40,14.52,6.6,14.06,25.76,28.75,19.06
+Gahaf_mode_travelling_a_journey_in_search_of_truth_Elyes_Alias_Gahaf_Tounsi_TEDxENIB,dev,TEDxENIB,Nord,False,139,40.0,18.64,12.2,13.81,18.31,23.14
+Life_of_a_Rubiks_Cube_in_Tunisia_Mahmoud_Ibrahim_TEDxPiloteAriana,dev,TEDxPiloteAriana,Grand Tunis,False,140,39.51,18.09,16.16,18.29,19.85,24.37
+Obstacles_what_obstacles_Dhouha_Boukadi_at_TEDxCarthageWomen,dev,TEDxCarthageWomen,Grand Tunis,False,108,23.41,9.12,14.4,15.64,38.76,35.11
+The_harmony_in_chaos_Belkis_Anane_TEDxDjerba,dev,TEDxDjerba,Sud,True,159,42.54,20.9,13.97,15.93,17.37,18.5
+We_live_until_we_die_and_we_dont_live_while_I_am_dead_inside_Mohamed_Ali_Ben_Hadji_TEDxUniversityofCarthage,dev,TEDxUniversityofCarthage,Grand Tunis,False,185,26.78,11.62,13.31,18.93,24.03,28.75
+Be_the_woman_you_always_wanted_to_be_Sarah_Arbi_TEDxJendoubaVille,test,TEDxJendoubaVille,Nord,False,100,22.51,7.76,14.13,11.68,19.51,24.96
+La_Reconversion_Vers_La_Passion_Teyssir_Ksouri_TEDxBebDiwen,test,TEDxBebDiwen,Sud,False,170,63.77,38.08,13.59,19.76,30.66,16.59
+Pink_Banana_Good_News_from_Tunisia_Raya_Ben_Guiza_at_TEDxCarthageWomen,test,TEDxCarthageWomen,Grand Tunis,True,134,18.76,7.75,14.12,14.77,64.46,28.29
+TEDx_Ooreedo_Nizar,test,inconnu,,False,109,18.86,8.69,13.83,18.74,59.81,34.43
+The_invisible_war_of_leadership_Achref_Aouadi_TEDxDjerba,test,TEDxDjerba,Sud,False,194,42.99,21.73,13.32,15.98,17.82,24.24
+What_I_can_do_in_Tunisia_Rabii_Ben_Brahim_TEDxDjerba,test,TEDxDjerba,Sud,False,135,32.48,13.38,13.18,12.43,13.41,20.14
+BLUE_TN_The_True_Story_Mayssa_Sandli_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,84.56,56.69,13.05,18.85,27.94,3.81
+Be_diamond_Ala_Eddine_Arbi_TEDxPolytechSousse,train,TEDxPolytechSousse,Sahel,False,40,14.52,6.6,14.06,26.07,28.75,19.06
 Between_Poetry_and_Calligraphy_Jelel_Bessaad_TEDxYouth_SadikiCollege,train,TEDxYouthSadikiCollege,,False,40,17.53,8.67,11.51,4.91,17.58,16.17
-Catalyst_for_Change_Karim_Ben_Fraj_s_Education_Revolution_Karim_Ben_Fraj_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,12.27,4.98,15.5,13.77,16.01,32.83
+Catalyst_for_Change_Karim_Ben_Fraj_s_Education_Revolution_Karim_Ben_Fraj_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,12.27,4.98,15.5,14.03,16.01,32.83
 Demain_sera_un_jour_meilleur_Sarah_Arbi_at_TEDxCarthage,train,TEDxCarthage,Grand Tunis,False,40,13.28,6.88,11.65,5.7,5.68,39.92
 Empowering_Womens_Rights_In_The_Heart_of_The_Medina_of_Tunis_Ahlem_Bousserwel_TEDxPashaStreet,train,TEDxPashaStreet,,True,40,74.39,46.52,10.13,3.95,6.45,4.49
-Hatem_Karoui_At_TEDxIHECCarthage,train,TEDxIHECCarthage,Grand Tunis,True,40,28.77,13.33,14.84,18.68,34.52,29.49
+Hatem_Karoui_At_TEDxIHECCarthage,train,TEDxIHECCarthage,Grand Tunis,True,40,28.77,13.33,14.84,18.85,34.52,29.49
 How_to_improve_the_educational_system_with_0_Dinar_Mohamed_Jabeur_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,5.82,2.21,14.43,5.88,8.37,32.85
-L_impossible_n_est_pas_Tunisien_Eya_Essif_TEDxINAT,train,TEDxINAT,,False,32,44.6,28.29,13.5,19.92,22.07,16.09
-La_culture_et_la_societe_Lassad_Jammoussi_TEDxENIS,train,TEDxENIS,Sud,False,40,27.33,11.99,10.61,4.88,7.05,17.19
-La_premiere_tablette_tunisienne_Chiheb_Bouattour_TEDxENIS,train,TEDxENIS,Sud,True,40,16.34,8.72,12.56,25.29,67.12,18.77
-Lart_des_lettres_de_lechec_a_la_meditation_Inkman_TEDxCarthage,train,TEDxCarthage,Grand Tunis,False,40,3.67,1.67,13.38,14.41,41.19,28.49
-Le_Maghreb_TEDxCarthage_Nabil_Karoui,train,TEDxCarthage,Grand Tunis,False,40,8.04,3.75,13.42,12.11,49.52,43.3
-Path_is_made_by_steps_Sahbi_Bouguerra_at_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,44.05,24.48,11.02,4.66,14.54,27.0
+L_impossible_n_est_pas_Tunisien_Eya_Essif_TEDxINAT,train,TEDxINAT,,False,32,44.6,28.29,13.5,19.98,22.07,16.09
+La_culture_et_la_societe_Lassad_Jammoussi_TEDxENIS,train,TEDxENIS,Sud,False,40,27.33,11.99,10.61,5.0,7.05,17.19
+La_premiere_tablette_tunisienne_Chiheb_Bouattour_TEDxENIS,train,TEDxENIS,Sud,True,40,16.34,8.72,12.56,24.66,67.12,18.77
+Lart_des_lettres_de_lechec_a_la_meditation_Inkman_TEDxCarthage,train,TEDxCarthage,Grand Tunis,False,40,3.67,1.67,13.38,14.47,41.19,28.49
+Le_Maghreb_TEDxCarthage_Nabil_Karoui,train,TEDxCarthage,Grand Tunis,False,40,8.04,3.75,13.42,12.13,49.52,43.3
+Path_is_made_by_steps_Sahbi_Bouguerra_at_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,44.05,24.48,11.02,4.73,14.54,27.0
 See_Through_My_Eyes_Leila_BenGacem_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,77.34,48.52,12.14,0.18,0.18,4.83
-Seniors_and_dignity_in_Tunisia_Leila_Gargoura_at_TEDxCarthageWomen,train,TEDxCarthageWomen,Grand Tunis,True,40,14.74,4.35,12.89,7.91,16.23,25.9
-Sfax_2021_Une_Perte_Positive_Fakhri_Fourati_TEDxBebDiwen,train,TEDxBebDiwen,Sud,True,40,23.33,11.32,12.82,11.39,15.24,17.41
-Sfax_el_mezyena_Fakhri_Fourati_TEDxENIS,train,TEDxENIS,Sud,True,40,20.97,9.41,13.32,19.77,26.24,18.85
-SilianaBis_la_legalisation_du_cannabis_en_Tunisie_Kais_Ben_Halima_TEDxCarthage,train,TEDxCarthage,Grand Tunis,False,40,8.32,3.27,13.21,13.35,42.77,27.47
-TEDxLPBT_Ahmed_Chaouachi_Lenergie_solaire_en_Tunisie_une_nouvelle_perspective,train,TEDxLPBT,Grand Tunis,False,40,9.77,3.28,13.99,14.32,18.58,36.57
-TEDx_Ecole_Polytechnique_de_Tunisie_Maissa_Sghaier_Enactus_EPT,train,inconnu,Grand Tunis,True,40,15.21,6.41,14.4,23.67,41.13,24.21
-The_Power_and_Potential_of_Gaming_Khalil_Elgharbi_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,78.12,52.84,14.73,28.18,41.15,4.56
-The_Power_of_Professional_Reinvention_Nawel_Bizid_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,135.69,91.54,12.37,11.18,13.37,3.9
+Seniors_and_dignity_in_Tunisia_Leila_Gargoura_at_TEDxCarthageWomen,train,TEDxCarthageWomen,Grand Tunis,True,40,14.74,4.35,12.89,7.61,16.23,25.9
+Sfax_2021_Une_Perte_Positive_Fakhri_Fourati_TEDxBebDiwen,train,TEDxBebDiwen,Sud,True,40,23.33,11.32,12.82,11.45,15.24,17.41
+Sfax_el_mezyena_Fakhri_Fourati_TEDxENIS,train,TEDxENIS,Sud,True,40,20.97,9.41,13.32,19.92,26.24,18.85
+SilianaBis_la_legalisation_du_cannabis_en_Tunisie_Kais_Ben_Halima_TEDxCarthage,train,TEDxCarthage,Grand Tunis,False,40,8.32,3.27,13.21,13.28,42.77,27.47
+TEDxLPBT_Ahmed_Chaouachi_Lenergie_solaire_en_Tunisie_une_nouvelle_perspective,train,TEDxLPBT,Grand Tunis,False,40,9.77,3.28,13.99,14.55,18.58,36.57
+TEDx_Ecole_Polytechnique_de_Tunisie_Maissa_Sghaier_Enactus_EPT,train,inconnu,Grand Tunis,True,40,15.21,6.41,14.4,22.99,41.13,24.21
+The_Power_and_Potential_of_Gaming_Khalil_Elgharbi_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,78.12,52.84,14.73,28.03,41.15,4.56
+The_Power_of_Professional_Reinvention_Nawel_Bizid_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,135.69,91.54,12.37,11.29,13.37,3.9
 The_Uncharted_Path_to_Business_Success_Takieddine_Ben_Messoud_TEDxPasha_Street,train,TEDxPashaStreet,,True,40,150.0,98.36,13.49,4.08,4.0,4.62
 The_chapters_of_my_EVOLUTION_Rym_Ben_Dhief_Akremi_TEDxENSTAB,train,TEDxENSTAB,,False,40,24.74,13.18,10.54,12.7,25.59,15.12
 The_story_of_Palestine_Oumaima_Thabti_TEDxEl_Ghazala_Women,train,TEDxElGhazalaWomen,,False,40,8.67,2.65,11.58,1.75,1.66,33.93
 Transformez_Vous_Adam_Jabeur_TEDxBebDiwen,train,TEDxBebDiwen,Sud,True,40,10.31,4.16,9.75,11.22,48.43,24.29
-Travels_that_reveal_your_inner_Awsomeness_Atef_Hsini_TEDxJendoubaVille,train,TEDxJendoubaVille,Nord,True,40,7.02,2.66,12.15,28.26,41.19,20.2
-Tumultes_retour_sur_le_parcours_anticonformiste_dune_comedienne_Nadia_Bousetta_TEDxSfax,train,TEDxSfax,Sud,True,40,6.61,2.33,15.3,9.66,41.65,31.12
-Tunisian_space_agency_Kerim_Hmaied_at_TEDxENIS,train,TEDxENIS,Sud,True,40,29.61,14.88,11.93,10.14,13.91,19.21
+Travels_that_reveal_your_inner_Awsomeness_Atef_Hsini_TEDxJendoubaVille,train,TEDxJendoubaVille,Nord,True,40,7.02,2.66,12.15,28.21,41.19,20.2
+Tumultes_retour_sur_le_parcours_anticonformiste_dune_comedienne_Nadia_Bousetta_TEDxSfax,train,TEDxSfax,Sud,True,40,6.61,2.33,15.3,9.64,41.65,31.12
+Tunisian_space_agency_Kerim_Hmaied_at_TEDxENIS,train,TEDxENIS,Sud,True,40,29.61,14.88,11.93,10.22,13.91,19.21
 Tunisian_young_professionals_Mohamed_Malouche_TEDxENIT,train,TEDxENIT,Grand Tunis,False,40,14.39,7.87,14.65,21.39,47.38,15.29
-Turning_Failures_into_Foundations_Mouhamed_Mouhib_Meddeb_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,12.64,4.65,14.71,16.62,22.45,36.64
-Understanding_Love_and_Attraction_Mariem_Oueslati_TEDxJendoubaVille,train,TEDxJendoubaVille,Nord,True,40,19.4,14.19,12.55,21.54,30.92,28.96
-What_is_social_entrepreneurship_and_why_you_should_know_about_it_SoumayaAtoui_TEDxJendoubaVille,train,TEDxJendoubaVille,Nord,True,40,7.46,2.65,12.0,19.2,19.77,27.96
-White_Feminism_VS_Decolonial_Feminism_Henda_Chennaoui_TEDxEl_Ghazala_Women,train,TEDxElGhazalaWomen,,False,40,8.22,2.17,11.75,3.83,6.33,33.05
-You_Become_What_You_Believe_You_Are_Mohamed_Kharrat_TEDxBebDiwen,train,TEDxBebDiwen,Sud,False,40,22.25,11.79,12.67,11.8,12.32,20.25
-You_will_not_realize_the_change_until_Mohamed_Khlifi_TEDxDjerba,train,TEDxDjerba,Sud,False,40,19.44,8.19,13.69,8.08,12.43,16.93
-Youssef_Cherif_Archelogie_TEDxENSI,train,TEDxENSI,Grand Tunis,True,40,267.14,137.29,13.32,7.93,7.57,22.54
+Turning_Failures_into_Foundations_Mouhamed_Mouhib_Meddeb_TEDxPiloteAriana,train,TEDxPiloteAriana,Grand Tunis,False,40,12.64,4.65,14.71,16.9,22.45,36.64
+Understanding_Love_and_Attraction_Mariem_Oueslati_TEDxJendoubaVille,train,TEDxJendoubaVille,Nord,True,40,19.4,14.19,12.55,21.59,30.92,28.96
+What_is_social_entrepreneurship_and_why_you_should_know_about_it_SoumayaAtoui_TEDxJendoubaVille,train,TEDxJendoubaVille,Nord,True,40,7.46,2.65,12.0,19.32,19.77,27.96
+White_Feminism_VS_Decolonial_Feminism_Henda_Chennaoui_TEDxEl_Ghazala_Women,train,TEDxElGhazalaWomen,,False,40,8.22,2.17,11.75,3.87,6.33,33.05
+You_Become_What_You_Believe_You_Are_Mohamed_Kharrat_TEDxBebDiwen,train,TEDxBebDiwen,Sud,False,40,22.25,11.79,12.67,11.87,12.32,20.25
+You_will_not_realize_the_change_until_Mohamed_Khlifi_TEDxDjerba,train,TEDxDjerba,Sud,False,40,19.44,8.19,13.69,8.15,12.43,16.93
+Youssef_Cherif_Archelogie_TEDxENSI,train,TEDxENSI,Grand Tunis,True,40,267.14,137.29,13.32,8.12,7.57,22.54
 mythe_Heifel_Ben_Youssef_at_TEDxDjerba,train,TEDxDjerba,Sud,False,40,25.26,9.8,14.47,4.52,4.52,24.63

@@ -1,2 +1,9 @@
 système,type,BLEU,IC95 BLEU,BLEU sacre,chrF++,COMET,segments,retenu (dev)
+C3-[ref]->nllb-lora-asrnoise,oracle,31.98,[30.6 ; 33.4],31.75,55.55,,841,False
+C2-[ref]->nllb-lora,oracle,31.64,[30.3 ; 33.1],31.37,55.37,,841,False
+C2-[whisper-small-ft]->nllb-lora,pipeline,22.78,[21.2 ; 24.3],22.6,46.59,,841,True
+C3-[whisper-small-ft]->nllb-lora-asrnoise,pipeline,22.82,[21.3 ; 24.3],22.68,46.52,,841,False
 E2E-2-whisper-small-from-asr,direct,20.92,[19.5 ; 22.3],20.76,44.7,,841,True
+C0-[ref]->nllb-zeroshot,oracle,13.07,[11.8 ; 14.5],12.01,37.09,,841,False
+C1-[whisper-small-ft]->nllb-zeroshot,pipeline,9.83,[8.8 ; 10.9],9.24,32.26,,841,False
+C4-[whisper-small-ft]->llm,pipeline,9.59,[8.4 ; 10.6],8.08,30.73,,841,False
