@@ -82,6 +82,15 @@
   erreurs (mots changés, hallucinations) que la traduction propage ; en la gardant, l'écart entre C4 et les autres
   cascades mélangerait l'effet du traducteur LLM et celui d'une correction non validée. La décision est prise sur le
   dev uniquement ; le test ne sert qu'à rapporter.
+- **Résultat sur le dev (whisper-small-ft, 731 segments) : correction non retenue.** WER brut 34,80 % → 42,51 %
+  (normalisé 34,54 → 41,60 ; sans hésitations 35,16 → 41,93 ; CER brut 15,94 → 21,48). Différence de WER brut
+  +7,72 points, IC 95 % apparié [+6,72 ; +8,71] : la correction **dégrade** nettement la transcription. Le LLM modifie
+  75,2 % des segments (toutes ses sorties passent le filtre de similarité) et en raccourcit 30 % (-0,42 mot en moyenne).
+  Exemples observés : mots corrects remplacés (`هذاكا` → `الحالي`, plus proche de l'arabe standard), emprunt français
+  bien reconnu remplacé par un mot arabe inexistant (`dépression` → `دهقنة`), français « corrigé » à tort
+  (`vos profilés` → `vous profils`), `و` ajouté à une phrase juste. Un LLM de 1,5 B paramètres (quantifié en 4 bits)
+  ne connaît pas assez le tunisien ni le code-switching pour corriger l'ASR. **C4 traduit donc la transcription ASR
+  d'origine.** À confirmer sur le test.
 
 ### Améliorations envisagées, non réalisées (ressources de calcul)
 
