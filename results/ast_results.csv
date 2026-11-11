@@ -1,0 +1,2 @@
+système,type,BLEU,IC95 BLEU,BLEU sacre,chrF++,COMET,segments,retenu (dev)
+E2E-2-whisper-small-from-asr,direct,20.92,[19.5 ; 22.3],20.76,44.7,,841,True
