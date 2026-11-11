@@ -83,6 +83,12 @@ def test_metrics():
     m, lo, hi = metrics.bootstrap_ci(metrics.wer_fn(), hyps, refs, n_samples=50)
     assert lo <= m <= hi
     assert metrics.translation_error_flags("x", "hello hello hello hello hello", "good morning everyone")
+    # règle de la post-correction : retenue seulement si l'IC apparié de la différence de WER est sous 0
+    R = ["a b c d", "e f g h", "i j k l", "m n o p"] * 5
+    bad = ["a x c d", "e f y h", "i j k z", "w n o p"] * 5
+    assert metrics.correction_helps(R, bad, R, n_samples=200)[0]        # la correction répare tout : retenue
+    assert not metrics.correction_helps(R, R, bad, n_samples=200)[0]    # elle dégrade : refusée
+    assert not metrics.correction_helps(R, bad, bad, n_samples=200)[0]  # aucun effet (IC = [0 ; 0]) : refusée
 
 
 def _tone(seconds, gap=0.0):

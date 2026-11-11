@@ -201,6 +201,15 @@ def wer_fn(cfg: NormConfig | None = RAW_NORM):
     return lambda h, r: wer_cer(r, h, cfg)["WER"]
 
 
+def correction_helps(refs, hyps, corrected, cfg: NormConfig | None = RAW_NORM, n_samples: int = 1000,
+                     seed: int = 42) -> tuple[bool, dict]:
+    """Règle de décision de la post-correction de l'ASR (à appliquer sur le DEV) : retenue seulement si l'IC 95 % du
+    bootstrap apparié de la différence de WER (corrigé - d'origine) est entièrement sous 0. Utilisée par le
+    notebook 01 (§10) et par le notebook 02 (C4 traduit la transcription corrigée seulement si elle est retenue)."""
+    bs = paired_bootstrap(wer_fn(cfg), list(hyps), list(corrected), list(refs), n_samples=n_samples, seed=seed)
+    return bs["IC95"][1] < 0, bs
+
+
 def bleu_fn():
     import sacrebleu
     return lambda h, r: sacrebleu.corpus_bleu([_strip_punct(x) for x in h], [[_strip_punct(x) for x in r]]).score
