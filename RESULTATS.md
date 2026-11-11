@@ -41,6 +41,10 @@
   checkpoint retenu a le BLEU de suivi le plus bas des steps 750 à 2000. **La règle a été gardée** ; c'est une limite
   du protocole, pas une raison de changer de checkpoint après coup. Une règle sur une métrique de génération (BLEU /
   chrF++ sur tout le dev) serait à fixer avant l'entraînement dans une prochaine expérience.
+- Modèle retenu sur **tout le dev** (730 segments : le segment `dev__00572`, sans traduction de référence, est
+  exclu de l'évaluation de la traduction ; beam 4) : **BLEU 19,08** [17,53 ; 20,60] (protocole du papier : casse
+  gardée, ponctuation retirée ; sacreBLEU 13a standard : 18,80), **chrF++ 43,61** [42,39 ; 44,90] (IC 95 % par
+  bootstrap sur les segments, 1 000 tirages).
 
 ### Normalisation d'évaluation (décidée sur le dev, avant toute évaluation sur le test)
 
