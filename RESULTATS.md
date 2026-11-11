@@ -18,6 +18,30 @@
 - Courbe de suivi : les WER des steps 250 à 750 ont été perdus lors d'un arrêt volontaire de l'entraînement (bug
   corrigé, CHANGELOG_EXECUTION.md n° 46) ; ceux des steps 1000 et 1250 ont été recalculés depuis les checkpoints.
 
+### E2E-2 (Whisper-small en traduction, initialisé depuis l'ASR fine-tuné) : choix du checkpoint
+
+- Même règle que pour l'ASR, fixée avant l'entraînement : early stopping et meilleur checkpoint sur la **dev loss**
+  (évaluation tous les 250 steps, patience 3).
+- Arrêt au step 2000 / 3920 : la dev loss n'a plus baissé après le step 1250. **Modèle retenu : checkpoint-1250.**
+
+  | step | dev loss | BLEU (200 seg. du dev) | chrF++ (200 seg. du dev) |
+  |---|---|---|---|
+  | 250 | 1,9119 | 14,67 | 38,31 |
+  | 500 | 1,7993 | 15,64 | 40,54 |
+  | 750 | 1,7659 | 18,33 | 41,96 |
+  | 1000 | 1,7417 | 18,50 | 42,26 |
+  | **1250** | **1,7358** | 16,85 | 41,35 |
+  | 1500 | 1,7547 | 18,26 | 42,61 |
+  | 1750 | 1,7489 | 17,56 | 42,25 |
+  | 2000 | 1,7748 | 17,57 | 42,51 |
+
+- **Limite** : en traduction, la dev loss remonte après le step 1250 (le modèle devient trop sûr de lui : la
+  cross-entropie pénalise fortement ses erreurs commises avec confiance) alors que le BLEU et le chrF++ restent
+  stables (16,9-18,5 et 41,4-42,6 sur 200 segments). Le choix sur la loss est donc moins adapté qu'en ASR : le
+  checkpoint retenu a le BLEU de suivi le plus bas des steps 750 à 2000. **La règle a été gardée** ; c'est une limite
+  du protocole, pas une raison de changer de checkpoint après coup. Une règle sur une métrique de génération (BLEU /
+  chrF++ sur tout le dev) serait à fixer avant l'entraînement dans une prochaine expérience.
+
 ### Normalisation d'évaluation (décidée sur le dev, avant toute évaluation sur le test)
 
 - Trois mesures : **WER brut** (`RAW_NORM`, protocole du papier : ponctuation et casse latine ignorées), **WER
