@@ -70,6 +70,19 @@
   sur le test, comme dans le papier). Les cascades
   C1 à C4 et la post-correction par LLM partent toutes de cette transcription.
 
+### Post-correction par LLM et source de C4 (règle fixée avant le calcul, appliquée sur le dev)
+
+- La post-correction de l'ASR par LLM (Qwen2.5-1.5B, exemples few-shot du train) n'est **retenue** que si elle baisse
+  le WER brut du dev de façon significative : IC 95 % du bootstrap apparié (1 000 tirages) de la différence de WER
+  (corrigé - d'origine) **entièrement sous 0** (`metrics.correction_helps`, la même fonction dans les notebooks 01 et 02).
+- **C4** (traduction par LLM) traduit la transcription corrigée seulement si la correction est retenue ; sinon il
+  traduit la **transcription ASR d'origine** (même source pour le dev et le test ; le nom du système l'indique :
+  `C4-[whisper-small-ft+llm]->llm` ou `C4-[whisper-small-ft]->llm`).
+- **Raison** : une correction qui n'améliore pas la transcription de façon démontrée sur le dev peut introduire des
+  erreurs (mots changés, hallucinations) que la traduction propage ; en la gardant, l'écart entre C4 et les autres
+  cascades mélangerait l'effet du traducteur LLM et celui d'une correction non validée. La décision est prise sur le
+  dev uniquement ; le test ne sert qu'à rapporter.
+
 ### Améliorations envisagées, non réalisées (ressources de calcul)
 
 - **w2v-BERT-2.0 CTC (+ LM 4-grammes)** : le fine-tuning complet (~600 M paramètres) ne tient pas sur le GPU local de
