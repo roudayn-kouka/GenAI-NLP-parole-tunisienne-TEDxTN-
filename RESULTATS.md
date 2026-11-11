@@ -91,6 +91,22 @@
   (`vos profilés` → `vous profils`), `و` ajouté à une phrase juste. Un LLM de 1,5 B paramètres (quantifié en 4 bits)
   ne connaît pas assez le tunisien ni le code-switching pour corriger l'ASR. **C4 traduit donc la transcription ASR
   d'origine.** À confirmer sur le test.
+- **Pourquoi le garde-fou (similarité ≥ 0,6) a laissé passer 550 modifications sur 731** (constat d'analyse ; le seuil
+  n'a pas été changé après coup) :
+  1. il mesure la **ressemblance avec l'hypothèse ASR**, pas la justesse : il écarte les réécritures complètes,
+     traductions et hallucinations, pas les petites modifications fausses ;
+  2. il est calculé **en caractères** (`SequenceMatcher`) : changer un ou deux mots d'une phrase de quinze mots garde
+     une similarité d'environ 0,9. Sur les 550 sorties acceptées : médiane 0,95, 10e centile 0,80, 72,2 % ≥ 0,9 ;
+     le seuil de 0,6 n'est presque jamais atteint ;
+  3. les 6 exemples few-shot ont été choisis parmi les segments du train où l'ASR se trompe (similarité 0,83 à 0,99,
+     WER 6 à 41 %) : le modèle ne voit que des exemples où **il faut changer quelque chose**, jamais un cas où la
+     transcription est à recopier telle quelle ;
+  4. la consigne demande d'écrire les emprunts français / anglais en latin, ce qui pousse à toucher aux mots latins :
+     sur les 363 segments acceptés dont l'hypothèse contient du latin, le LLM a modifié les mots latins dans 229.
+  Effet par segment (WER du segment) sur les 550 sorties acceptées : 70,0 % dégradées, 26,5 % inchangées, 3,5 %
+  améliorées. Erreurs : substitutions 25,9 → 31,5 %, suppressions 3,7 → 5,8 %, insertions 5,2 → 5,2 %. Limite de la
+  mesure : les sorties brutes du LLM ne sont pas sauvegardées, on ne peut donc pas distinguer, parmi les 181 segments
+  non modifiés, ceux que le garde-fou a rejetés de ceux que le LLM a recopiés.
 
 ### Améliorations envisagées, non réalisées (ressources de calcul)
 
@@ -100,6 +116,10 @@
 - **E2E-1** (Whisper-small en traduction, initialisé depuis le modèle de base) : abandonné faute de temps GPU (5 à 7 h
   sur le GPU local). **Conséquence** : sans E2E-1, l'effet de l'initialisation depuis l'ASR fine-tuné (E2E-2) n'est
   pas isolé ; on ne peut pas dire quelle part du score de l'E2E-2 vient de cette initialisation.
+- **Post-correction LLM** : un LLM plus gros (Qwen2.5-7B-Instruct, prévu par le code au-delà de 20 Go de VRAM,
+  impossible sur 6 Go), ou un LLM fine-tuné sur des paires tunisiennes (sortie ASR, référence) du train ; une
+  consigne plus stricte (ne jamais transformer un mot en écriture latine, recopier tel quel en cas de doute) et des
+  exemples few-shot qui incluent des transcriptions justes à recopier sans changement.
 
 ### Écarts au protocole du papier (à compléter)
 
