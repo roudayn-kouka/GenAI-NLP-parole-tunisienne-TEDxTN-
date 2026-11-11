@@ -108,6 +108,15 @@
   mesure : les sorties brutes du LLM ne sont pas sauvegardées, on ne peut donc pas distinguer, parmi les 181 segments
   non modifiés, ceux que le garde-fou a rejetés de ceux que le LLM a recopiés.
 
+### C3 (NLLB LoRA entraîné avec 50 % de sorties ASR bruitées) : constat sur le dev
+
+- Entraînement complet (6 epochs, 2940 steps, sans early stopping), modèle retenu : checkpoint-2800 (dev loss 2,8902
+  contre 2,8879 pour C2 ; courbes presque superposées).
+- Dev (730 segments, source whisper-small-ft) : BLEU 20,65 [19,07 ; 22,19], chrF++ 45,02 [43,78 ; 46,26], contre
+  21,05 / 45,29 pour C2. Bootstrap apparié C3 - C2 : BLEU -0,40 [-1,14 ; +0,24] (p = 0,89), chrF++ -0,28
+  [-0,73 ; +0,14] (p = 0,90) : **pas de différence significative**. L'entraînement sur sorties ASR bruitées n'a pas
+  rendu NLLB plus robuste aux erreurs de whisper-small-ft. À confirmer sur le test.
+
 ### Améliorations envisagées, non réalisées (ressources de calcul)
 
 - **w2v-BERT-2.0 CTC (+ LM 4-grammes)** : le fine-tuning complet (~600 M paramètres) ne tient pas sur le GPU local de
