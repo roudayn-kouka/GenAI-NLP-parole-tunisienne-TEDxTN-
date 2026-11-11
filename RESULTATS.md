@@ -64,6 +64,21 @@
   le test.** (Le chiffre de 34,57 % cité avant la décision venait d'une configuration intermédiaire : ancienne
   `EVAL_NORM` sans les hésitations mais avec la frontière de script.)
 
+### ASR retenu pour les cascades
+
+- **asr_best = whisper-small-ft, définitivement** (seul ASR fine-tuné du projet ; les baselines zero-shot ne sont évaluées que
+  sur le test, comme dans le papier). Les cascades
+  C1 à C4 et la post-correction par LLM partent toutes de cette transcription.
+
+### Améliorations envisagées, non réalisées (ressources de calcul)
+
+- **w2v-BERT-2.0 CTC (+ LM 4-grammes)** : le fine-tuning complet (~600 M paramètres) ne tient pas sur le GPU local de
+  6 Go ; il était prévu sur Colab (notebook 01b) et a été abandonné. La comparaison des systèmes ASR avec le papier
+  se fait donc sans ce modèle.
+- **E2E-1** (Whisper-small en traduction, initialisé depuis le modèle de base) : abandonné faute de temps GPU (5 à 7 h
+  sur le GPU local). **Conséquence** : sans E2E-1, l'effet de l'initialisation depuis l'ASR fine-tuné (E2E-2) n'est
+  pas isolé ; on ne peut pas dire quelle part du score de l'E2E-2 vient de cette initialisation.
+
 ### Écarts au protocole du papier (à compléter)
 
 - Train : 15 703 segments dans `train.csv` du Hub contre 15 626 dans le papier (+77), gardés.
