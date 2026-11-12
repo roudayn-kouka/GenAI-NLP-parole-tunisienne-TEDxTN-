@@ -5,6 +5,11 @@
 > sur le **dev** ; le **test** a été évalué une seule fois, lors de la passe finale du 12/11/2026, et aucun système n'a
 > été modifié ensuite. IC 95 % : bootstrap sur les segments (1 000 tirages). Reste à faire : section 6
 > (normalisation, ByT5), voir « À faire ».
+>
+> **En bref (test)** : ASR whisper-small-ft WER 34,55 % (papier, même modèle : 27,78 %) ; meilleure traduction :
+> cascade C2 (ASR → NLLB-600M LoRA) BLEU 22,78, significativement au-dessus de la traduction directe E2E-2 (20,92 ;
+> +1,84 [+0,45 ; +3,15]), elle-même au-dessus du Whisper-small fine-tuné du papier (18,53). Les options LLM
+> (Qwen2.5-1.5B) dégradent la correction et la traduction. Interface : 180 / 180 tests sans erreur.
 
 ## 1. Conditions d'exécution
 
@@ -184,6 +189,54 @@ différent de C2 : -0,40 BLEU [-1,14 ; +0,24]).
   Le papier rapporte qu'un encodeur w2v-BERT / XLSR relié à NLLB-1.3B n'a pas dépassé 5 BLEU ; il n'évalue pas de
   cascade ASR → NLLB.
 
+## 5. Identification de la région et du type de code-switching (notebook 04)
+
+Régions attribuées aux talks d'après le lieu de l'événement TEDx (sources : pages ted.com/tedx/events, titres) :
+87 talks sur 108 attribués (21 sans région connue) ; 4 classes gardées (Grand Tunis 44 talks / 6 726 segments, Sud 26 / 3 941, Nord 11 /
+1 866, Cap Bon 4 / 731 ; Sahel, 2 talks, écarté). Pas de split officiel pour cette tâche : validation croisée
+**groupée par talk** (un talk n'est jamais à la fois en apprentissage et en évaluation).
+
+| Tâche | Données / protocole | accuracy | F1 macro |
+|---|---|---|---|
+| Région (texte, TF-IDF + régression logistique) | classe majoritaire | 0,507 | 0,168 |
+| | GroupKFold par talk (4 plis) | 0,355 | 0,258 |
+| | GroupKFold + vote par talk | 0,424 | 0,190 |
+| | KFold aléatoire (**fuite** entre talks, pour comparaison seulement) | 0,598 | 0,543 |
+| Région (audio, plongements w2v-BERT-2.0, 40 segments par talk) | GroupKFold par talk (4 plis) | 0,607 | 0,480 |
+| Type de segment TUN / MIXED / FOR (audio) | train → test officiel (842 segments) | 0,741 | 0,689 |
+
+- **Région par le texte : pas mieux que le hasard pondéré.** Avec un protocole honnête (talks séparés), l'accuracy
+  (0,355) est sous la classe majoritaire (0,507) ; seul le F1 macro dépasse un peu la référence (0,258 contre 0,168).
+  Le protocole avec fuite (0,598) montre ce que l'on mesurerait à tort : le modèle reconnaît le talk (sujet,
+  vocabulaire), pas la région. Les n-grammes les plus associés confirment : noms de lieux (`صفاقس` pour le Sud) et
+  mots du sujet (`pc` pour le Cap Bon).
+- **Région par l'audio : 0,607 d'accuracy, F1 macro 0,480**, nettement mieux que le texte. Limite : avec des talks
+  séparés, le modèle peut encore exploiter les conditions d'enregistrement d'un même événement (salle, micro), liées
+  à la région ; ce n'est pas une preuve qu'il reconnaît l'accent.
+- **Type de code-switching par l'audio** (test officiel) : F1 0,81 pour MIXED, 0,63 pour TUN et pour FOR.
+
+## 6. Normalisation du texte (notebook 03)
+
+À compléter le 13/11 (ByT5 1 epoch avec contrôle de recopie, passe finale du notebook 03). Les choix de
+normalisation pour l'évaluation sont décrits dans « Notes de protocole ».
+
+## 7. Interface et tests de la plateforme
+
+- Interface Gradio (`app/app.py`, `common/pipeline.py`) : ASR whisper-small-ft, traduction directe E2E-2, cascade
+  ASR → NLLB LoRA (C2), cibles anglais / français / arabe standard (ces deux dernières sans référence ; E2E-2 passe par
+  l'anglais comme pivot). Les options LLM sont signalées comme déconseillées, avec les chiffres du dev (correction :
+  +7,7 points de WER ; traduction LLM : BLEU 6,1 contre 21,1 pour NLLB fine-tuné).
+- Tests de la plateforme (`scripts/platform_tests.py`, `results/platform_tests.csv`) : 20 segments du test tirés au
+  hasard par type (13 MIXED, 5 TUN, 2 FOR ; 1,2 à 12,0 s, 4,7 s en moyenne) x 3 modes (pipeline, direct, comparaison)
+  x 3 langues cibles = 180 exécutions. **180 / 180 sans étape en erreur**, aucun avertissement ; temps médian 0,9 s
+  par exécution (max 8,1 s, premier appel compris) sur le GPU de 6 Go. chrF++ indicatif vers l'anglais (20 segments) :
+  pipeline 43,1, direct 38,7.
+- Bug trouvé par ces tests et corrigé avant la relance (CHANGELOG n° 59) : en beam search, le calcul des probabilités
+  par token de l'interface faisait planter le GPU (première exécution : 3 / 180). Il ne concernait pas les
+  prédictions évaluées.
+- Démo du notebook 05 (5 segments du test, mode comparaison) : WER par segment de 6,3 à 30,6 %, traductions
+  directe et pipeline produites pour chaque segment.
+
 ## Notes de protocole
 
 ### Whisper-small fine-tuné (ASR) : choix du checkpoint
@@ -333,6 +386,8 @@ Ceux qui touchent l'interprétation des résultats :
   faites avec un autre ASR.
 - n° 55 : C4 aurait traduit la transcription corrigée par LLM même non retenue ; corrigé avant C4.
 - n° 58 : baseline Whisper-large-v3 zero-shot (traduction) trop lente sur 6 Go, abandonnée pendant la passe finale.
+- n° 59 : plantage CUDA de l'interface en beam search (probabilités par token), trouvé par les tests de la
+  plateforme ; corrigé dans l'interface, sans effet sur les prédictions évaluées.
 - Aucun bug de calcul de score n'a été trouvé pendant la passe finale ; aucun système n'a été modifié après le test.
 
 ## Limites
