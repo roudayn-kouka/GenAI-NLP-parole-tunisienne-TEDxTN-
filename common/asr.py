@@ -165,7 +165,7 @@ def whisper_generate(model, processor, wavs: list[np.ndarray], task: str = "tran
             gen = model.generate(input_features=x, task=task, language=language, num_beams=num_beams,
                                  max_new_tokens=max_new_tokens, return_dict_in_generate=True,
                                  output_scores=return_details)
-            return [(gen, processor.batch_decode(gen.sequences, skip_special_tokens=True))]
+            return [(gen, processor.batch_decode(gen.sequences, skip_special_tokens=True), x)]
         except RuntimeError as e:   # torch.cuda.OutOfMemoryError ou « CUDA driver error: out of memory »
             if "out of memory" not in str(e) or len(chunk) == 1:
                 raise
@@ -175,19 +175,28 @@ def whisper_generate(model, processor, wavs: list[np.ndarray], task: str = "tran
 
     outs = []
     for i in range(0, len(wavs), batch_size):
-        for gen, texts in _gen(wavs[i:i + batch_size]):
-            outs.extend(_postprocess(gen, texts, model, processor, num_beams, return_details))
+        for gen, texts, x in _gen(wavs[i:i + batch_size]):
+            outs.extend(_postprocess(gen, texts, model, processor, num_beams, return_details, x))
     return outs
 
 
-def _postprocess(gen, texts, model, processor, num_beams, return_details):
+def _postprocess(gen, texts, model, processor, num_beams, return_details, features=None):
     """Texte seul, ou (return_details) texte + tokens + probabilités par token + confiance moyenne."""
     if not return_details:
         return [t.strip() for t in texts]
     outs = []
     base = model.get_base_model() if hasattr(model, "get_base_model") else model
-    trans = base.compute_transition_scores(gen.sequences, gen.scores,
-                                           getattr(gen, "beam_indices", None), normalize_logits=num_beams == 1)
+    if num_beams == 1:
+        trans = base.compute_transition_scores(gen.sequences, gen.scores, normalize_logits=True)
+    else:
+        # En beam search, compute_transition_scores de transformers déborde d'un index avec Whisper (séquences qui
+        # contiennent le préfixe forcé, beam_indices décalés) : « device-side assert » CUDA qui rend le GPU
+        # inutilisable pour le reste du processus. Probabilités recalculées par une passe forcée sur la séquence
+        # retenue : log p(token | préfixe, audio) sous le modèle (pas le score du faisceau).
+        seq = gen.sequences
+        with torch.no_grad():
+            logits = base(input_features=features, decoder_input_ids=seq[:, :-1]).logits.float()
+        trans = torch.log_softmax(logits, -1).gather(-1, seq[:, 1:, None]).squeeze(-1)
     n_gen = trans.shape[1]
     for seq, sc, txt in zip(gen.sequences, trans, texts):
         gen_ids = seq[-n_gen:]
