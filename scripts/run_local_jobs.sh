@@ -14,6 +14,12 @@
 #             train comprise) ; C2 relu ;
 #   byt5    : notebook 03, ByT5-small (normalisation seq2seq), 1 epoch (≈ 1 250 steps) ; LLM, MSA et impact MT coupés ;
 #   e2e1    : notebook 02, E2E-1 (Whisper-small translate depuis le modèle de base) ; autres sections coupées.
+# Passe finale (aucun réentraînement : modèles finals trouvés -> entraînement sauté ; prédictions relues) :
+#   final01 : notebook 01 complet (évaluation dev + test) ;
+#   final02 : notebook 02 complet (B0 zero-shot, autres langues cibles, COMET, test apparié direct / pipeline) ;
+#             E2E-1 coupé (abandonné) ; inférence ASR du train de C3 coupée (les prédictions de C3 sont relues) ;
+#   final04 : notebook 04 complet ;  final05 : notebook 05 (démo ; limite de 30 min, l'interface Gradio est lancée) ;
+#   platform: scripts/platform_tests.py (20 segments du test x 3 modes x 3 langues -> results/platform_tests.csv).
 # Attend d'abord la fin de toute exécution de notebook en cours. Une tâche en échec est signalée (« ÉCHEC ») et la
 # suivante est lancée. Chaque notebook exécuté va dans /root/runs/<tâche>.ipynb ; le notebook du projet n'est pas
 # modifié. Code : celui du projet au lancement de chaque tâche.
@@ -46,9 +52,10 @@ run() {  # run <notebook> <sortie> <variables...>
   local nb=$1 out=$2; shift 2
   pgrep -f gpu_monitor.sh > /dev/null || { setsid nohup bash scripts/gpu_monitor.sh /root/logs/gpu_monitor.csv 300 87 \
     > /dev/null 2>&1 < /dev/null & }   # relancé à chaque tâche
+  local to=-1; [ "$out" = 05_final ] && to=1800   # le notebook 05 lance l'interface : jamais bloquant plus de 30 min
   echo "=== $out début $(date '+%F %T') ($*)"
   env "$@" jupyter nbconvert --to notebook --execute "notebooks/$nb" --output-dir /root/runs --output "$out" \
-    --ExecutePreprocessor.timeout=-1 --ExecutePreprocessor.kernel_name=python3 2>&1 \
+    --ExecutePreprocessor.timeout=$to --ExecutePreprocessor.kernel_name=python3 2>&1 \
     | grep -vE "IPKernelApp|Deprecated Feature|MissingIDFieldWarning|_validate\(" | tail -25
   local rc=${PIPESTATUS[0]}
   if [ "$rc" = 0 ]; then echo "=== $out fin $(date '+%F %T')"
@@ -66,6 +73,15 @@ for job in "$@"; do
     c3)      run 02_Speech_to_Text_Translation.ipynb 02_c3 $OFF02 TEDXTN_RUN_NLLB_FT=1 TEDXTN_RUN_ASR_NOISE=1 ;;
     byt5)    run 03_Text_Normalization.ipynb 03_byt5 TEDXTN_RUN_BYT5=1 TEDXTN_BYT5_EPOCHS=1 TEDXTN_RUN_LLM=0 TEDXTN_RUN_MSA=0 TEDXTN_RUN_MT_IMPACT=0 ;;
     e2e1)    run 02_Speech_to_Text_Translation.ipynb 02_e2e1 $OFF02 TEDXTN_RUN_E2E=1 TEDXTN_RUN_E2E1=1 TEDXTN_RUN_E2E2=0 ;;
+    final01) run 01_Tunisian_ASR.ipynb 01_final ;;
+    final02) run 02_Speech_to_Text_Translation.ipynb 02_final TEDXTN_RUN_E2E1=0 TEDXTN_RUN_ASR_NOISE=0 ;;
+    final04) run 04_Dialect_Identification.ipynb 04_final ;;
+    final05) run 05_Interface_Demo.ipynb 05_final ;;
+    platform)
+      echo "=== platform début $(date '+%F %T')"
+      python scripts/platform_tests.py 2>&1 | grep -viE "warn" | tail -15
+      if [ "${PIPESTATUS[0]}" = 0 ]; then echo "=== platform fin $(date '+%F %T')"
+      else echo "=== platform ÉCHEC $(date '+%F %T')"; FAILED="$FAILED platform"; fi ;;
     *)       echo "tâche inconnue : $job" ;;
   esac
 done
