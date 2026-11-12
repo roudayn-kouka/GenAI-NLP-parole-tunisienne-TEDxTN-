@@ -18,6 +18,7 @@
 #   final01 : notebook 01 complet (évaluation dev + test) ;
 #   final02 : notebook 02 complet (B0 zero-shot, autres langues cibles, COMET, test apparié direct / pipeline) ;
 #             E2E-1 coupé (abandonné) ; inférence ASR du train de C3 coupée (les prédictions de C3 sont relues) ;
+#             B0 = Whisper-small zero-shot seulement (large-v3 : plus d'1 h 30 sans finir sur 6 Go, chiffre du papier) ;
 #   final04 : notebook 04 complet ;  final05 : notebook 05 (démo ; limite de 30 min, l'interface Gradio est lancée) ;
 #   platform: scripts/platform_tests.py (20 segments du test x 3 modes x 3 langues -> results/platform_tests.csv).
 # Attend d'abord la fin de toute exécution de notebook en cours. Une tâche en échec est signalée (« ÉCHEC ») et la
@@ -74,7 +75,7 @@ for job in "$@"; do
     byt5)    run 03_Text_Normalization.ipynb 03_byt5 TEDXTN_RUN_BYT5=1 TEDXTN_BYT5_EPOCHS=1 TEDXTN_RUN_LLM=0 TEDXTN_RUN_MSA=0 TEDXTN_RUN_MT_IMPACT=0 ;;
     e2e1)    run 02_Speech_to_Text_Translation.ipynb 02_e2e1 $OFF02 TEDXTN_RUN_E2E=1 TEDXTN_RUN_E2E1=1 TEDXTN_RUN_E2E2=0 ;;
     final01) run 01_Tunisian_ASR.ipynb 01_final ;;
-    final02) run 02_Speech_to_Text_Translation.ipynb 02_final TEDXTN_RUN_E2E1=0 TEDXTN_RUN_ASR_NOISE=0 ;;
+    final02) run 02_Speech_to_Text_Translation.ipynb 02_final TEDXTN_RUN_E2E1=0 TEDXTN_RUN_ASR_NOISE=0 TEDXTN_B0_MODELS=whisper-small ;;
     final04) run 04_Dialect_Identification.ipynb 04_final ;;
     final05) run 05_Interface_Demo.ipynb 05_final ;;
     platform)
