@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from common.config import AppModels, RESULTS_DIR, SEGMENTS_DIR, TARGET_LANGUAGES  # noqa: E402
-from common.pipeline import EXPLAIN, TITLES, TunisianSpeechPipeline  # noqa: E402
+from common.pipeline import (EXPLAIN, LLM_CORRECTION_WARNING, LLM_TRANSLATION_WARNING, TITLES,  # noqa: E402
+                             TunisianSpeechPipeline)
 from common.text import code_switch_html  # noqa: E402
 
 STEP_KEYS = ["input", "vad", "features", "asr", "codeswitch", "normalize", "llm", "translate", "result"]
@@ -241,8 +242,9 @@ def build_demo(pipeline: TunisianSpeechPipeline | None = None) -> gr.Blocks:
                         mode = gr.Radio(list(MODES), value="Comparer les deux", label="Méthode de traduction")
                         with gr.Accordion("Options avancées", open=False):
                             mt_engine = gr.Radio(["NLLB", "LLM", "NLLB + LLM"], value="NLLB",
-                                                 label="Moteur de traduction du pipeline")
-                            use_llm = gr.Checkbox(value=False, label="Post-correction de la transcription par LLM (GenAI)")
+                                                 label="Moteur de traduction du pipeline", info=LLM_TRANSLATION_WARNING)
+                            use_llm = gr.Checkbox(value=False, label="Post-correction de la transcription par LLM (GenAI)",
+                                                  info=LLM_CORRECTION_WARNING)
                             beams = gr.Slider(1, 5, value=1, step=1, label="Beam search (Whisper)")
                         run = gr.Button("Analyser ma voix", variant="primary", elem_id="dv-run")
                         ex = _examples()

@@ -33,6 +33,14 @@ from .text import WRITING_NORM, cmi, code_switch_html, code_switch_stats, normal
 
 MAX_CHUNK_S = 25.0
 
+# Avertissements des options LLM (mesures du DEV de TEDxTN, RESULTATS.md ; affichés dans l'interface et dans l'étape)
+LLM_CORRECTION_WARNING = (
+    "Option déconseillée : sur le dev de TEDxTN, la post-correction par LLM (Qwen2.5-1.5B) dégrade la transcription "
+    "(WER 34,8 % → 42,5 %, +7,7 points ; IC 95 % apparié [+6,7 ; +8,7]). Elle n'a pas été retenue.")
+LLM_TRANSLATION_WARNING = (
+    "Option déconseillée : sur le dev de TEDxTN, la traduction par LLM (Qwen2.5-1.5B) obtient un BLEU de 6,1 contre "
+    "21,1 pour NLLB fine-tuné (chrF++ 27,5 contre 45,3).")
+
 
 # ==========================================================================
 # Structures de résultat
@@ -616,7 +624,9 @@ class TunisianSpeechPipeline:
             mt_input = corrected[0]
             st.summary = "correction acceptée" if accepted[0] else "aucune correction retenue"
             st.data = {"modèle": self.llm.name}
-            st.html = kv_html(st.data) + diff_html(res.transcript, corrected[0])
+            st.status = "warn"
+            st.html = f"<div class='note'>{html.escape(LLM_CORRECTION_WARNING)}</div>" + kv_html(st.data) + \
+                      diff_html(res.transcript, corrected[0])
 
         if use_llm and res.transcript:
             add("llm", s_llm)
@@ -647,6 +657,7 @@ class TunisianSpeechPipeline:
                         notes.append(self.mt.warning)
                 if mt_engine in ("LLM", "NLLB + LLM"):
                     res.translations["Pipeline ASR → LLM"] = self.llm.translate([mt_input], info["llm_name"])[0]
+                    notes.append(LLM_TRANSLATION_WARNING)
             for k, v in res.translations.items():
                 rows.append(f"<div class='tr-card'><div class='tr-h'>{html.escape(k)}</div>"
                             f"<div class='tr-t' dir='auto'>{html.escape(v)}</div></div>")
@@ -661,7 +672,7 @@ class TunisianSpeechPipeline:
             st.html = "".join(f"<div class='note'>{html.escape(n)}</div>" for n in notes) + \
                       f"<div class='tr-grid'>{''.join(rows)}</div>" + agree
             if notes:
-                st.status = "warn" if any("introuvable" in n for n in notes) else st.status
+                st.status = "warn" if any("introuvable" in n or n == LLM_TRANSLATION_WARNING for n in notes) else st.status
 
         add("translate", s_tr)
         yield res

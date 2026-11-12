@@ -133,6 +133,16 @@ class FakeMT:
         return [f"[{tgt}] first thing the smoking room" for _ in texts]
 
 
+class FakeLLM:
+    name = "fake-llm"
+
+    def correct(self, texts):
+        return [t + " باهي" for t in texts], [True for _ in texts]
+
+    def translate(self, texts, target_name):
+        return [f"[{target_name}] llm" for _ in texts]
+
+
 def test_pipeline_with_fake_backends():
     pipe = TunisianSpeechPipeline(asr=FakeASR(), e2e=FakeE2E(), mt=FakeMT())
     wav = _tone(3, 0.3)
@@ -145,6 +155,16 @@ def test_pipeline_with_fake_backends():
             assert res.transcript and res.translations
             if mode == "compare":
                 assert len(res.translations) == 2
+    # options LLM : l'avertissement (mesures du dev) apparaît dans l'étape concernée, marquée « warn »
+    from common.pipeline import LLM_CORRECTION_WARNING, LLM_TRANSLATION_WARNING
+    import html as _html
+    pipe = TunisianSpeechPipeline(asr=FakeASR(), e2e=FakeE2E(), mt=FakeMT(), llm=FakeLLM())
+    res = pipe.run((44_100, (np.repeat(wav[:, None], 2, 1) * 32767).astype(np.int16)), target="Anglais", mode="pipeline", use_llm=True,
+                   mt_engine="NLLB + LLM")
+    st = {s.key: s for s in res.steps}
+    assert st["llm"].status == "warn" and _html.escape(LLM_CORRECTION_WARNING) in st["llm"].html
+    assert st["translate"].status == "warn" and _html.escape(LLM_TRANSLATION_WARNING) in st["translate"].html
+    assert set(res.translations) == {"Pipeline ASR → NLLB", "Pipeline ASR → LLM"}
 
 
 if __name__ == "__main__":
