@@ -171,7 +171,9 @@ différent de C2 : -0,40 BLEU [-1,14 ; +0,24]).
   contresens 13,6 %, ajout / hallucination 4,4 %, omission 1,1 %, répétition en boucle 0,5 % ; C2 : 80,6 / 13,2 /
   3,3 / 2,4 / 0,2 %. Profils très proches ; la cascade hallucine un peu moins, omet un peu plus.
 - **Autres langues cibles** (sans référence dans TEDxTN : mesure indicative par aller-retour vers l'anglais avec
-  NLLB, chrF++ contre la référence anglaise) : français 42,2, arabe standard 39,9.
+  NLLB, chrF++ contre la référence anglaise) : français 42,2, arabe standard 39,9. Mesure faite avec le NLLB de **C3**
+  (`mt_best` copié dans un ordre fixe, CHANGELOG n° 61), pas celui de C2 ; C2 et C3 étant équivalents sur le dev et
+  le test, l'écart attendu est faible, mais il n'est pas mesuré.
 
 ### 4.4 Comparaison avec le papier (Tableau 7, BLEU au même protocole)
 
@@ -289,8 +291,8 @@ graphies **observées mais réassemblées automatiquement** ; il n'y a pas de r�
 
 ## 7. Interface et tests de la plateforme
 
-- Interface Gradio (`app/app.py`, `common/pipeline.py`) : ASR whisper-small-ft, traduction directe E2E-2, cascade
-  ASR → NLLB LoRA (C2), cibles anglais / français / arabe standard (ces deux dernières sans référence ; E2E-2 passe par
+- Interface Gradio (`app/app.py`, `common/pipeline.py`, lancement : `scripts/run_app.sh`) : ASR whisper-small-ft,
+  traduction directe E2E-2, cascade ASR → NLLB LoRA (C2), cibles anglais / français / arabe standard (ces deux dernières sans référence ; E2E-2 passe par
   l'anglais comme pivot). Les options LLM sont signalées comme déconseillées, avec les chiffres du dev (correction :
   +7,7 points de WER ; traduction LLM : BLEU 6,1 contre 21,1 pour NLLB fine-tuné).
 - Tests de la plateforme (`scripts/platform_tests.py`, `results/platform_tests.csv`) : 20 segments du test tirés au
@@ -301,6 +303,10 @@ graphies **observées mais réassemblées automatiquement** ; il n'y a pas de r�
 - Bug trouvé par ces tests et corrigé avant la relance (CHANGELOG n° 59) : en beam search, le calcul des probabilités
   par token de l'interface faisait planter le GPU (première exécution : 3 / 180). Il ne concernait pas les
   prédictions évaluées.
+- **Correction (CHANGELOG n° 61)** : pendant ces tests et la démo du notebook 05, le NLLB de l'interface était
+  celui de **C3** (copié dans un ordre fixe), et non celui de C2 choisi sur le dev ; c'est corrigé, l'interface
+  charge maintenant le NLLB de C2 (vérifié par empreinte des poids et au chargement). Les 180 tests portent donc sur
+  le pipeline ASR → NLLB de C3 ; le pipeline avec C2 n'a pas été retesté.
 - Démo du notebook 05 (5 segments du test, mode comparaison) : WER par segment de 6,3 à 30,6 %, traductions
   directe et pipeline produites pour chaque segment.
 
