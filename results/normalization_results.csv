@@ -1,0 +1,15 @@
+évaluation,valeur
+"réduction du vocabulaire du train (règles, %)",2.25
+exactitude mots inconnus · identité (ne rien faire),36.1
+exactitude mots inconnus · lexique majoritaire,36.1
+exactitude mots inconnus · ByT5,83.71
+OOV dev+test · brut,9.74
+OOV dev+test · règles,9.17
+OOV dev+test · lexique majoritaire,9.74
+WER brut · whisper-small-ft,34.55
+WER normalisé (orthographe) · whisper-small-ft,34.31
+WER sans hésitations · whisper-small-ft,33.72
+WER lexique majoritaire · whisper-small-ft,34.33
+WER script-aware · whisper-small-ft,33.66
+chrF++ NLLB · entrée brut,37.09
+chrF++ NLLB · entrée règles,36.97
