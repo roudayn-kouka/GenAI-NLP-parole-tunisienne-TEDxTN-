@@ -2,14 +2,15 @@
 
 > Chaque chiffre vient d'une exécution réelle (notebooks exécutés dans `/root/runs/*_final.ipynb`, prédictions dans
 > `results/preds/`, tableaux dans `results/*.csv`). Tous les choix (checkpoints, règles, meilleur système) ont été faits
-> sur le **dev** ; le **test** a été évalué une seule fois, lors de la passe finale du 12/11/2026, et aucun système n'a
-> été modifié ensuite. IC 95 % : bootstrap sur les segments (1 000 tirages). Reste à faire : section 6
-> (normalisation, ByT5), voir « À faire ».
+> sur le **dev** ; le **test** a été évalué une seule fois, lors de la passe finale (12/11/2026 ; notebook 03 le
+> 13/11 avec ByT5), et aucun système n'a été modifié ensuite. IC 95 % : bootstrap sur les segments (1 000 tirages).
 >
 > **En bref (test)** : ASR whisper-small-ft WER 34,55 % (papier, même modèle : 27,78 %) ; meilleure traduction :
 > cascade C2 (ASR → NLLB-600M LoRA) BLEU 22,78, significativement au-dessus de la traduction directe E2E-2 (20,92 ;
 > +1,84 [+0,45 ; +3,15]), elle-même au-dessus du Whisper-small fine-tuné du papier (18,53). Les options LLM
-> (Qwen2.5-1.5B) dégradent la correction et la traduction. Interface : 180 / 180 tests sans erreur.
+> (Qwen2.5-1.5B) dégradent la correction et la traduction. Normalisation : ByT5 ramène 83,7 % des variantes jamais
+> vues à la forme majoritaire (lexique : 36,1 %), mais la normalisation change peu le WER et n'aide pas la
+> traduction. Interface : 180 / 180 tests sans erreur.
 
 ## 1. Conditions d'exécution
 
@@ -27,6 +28,7 @@
   | E2E-2 (traduction directe) | ASR whisper-small-ft | step 2000 / 3920 (epoch 4,1), early stopping | 1250 (≈ 2,6 epochs) |
   | C2 : NLLB-600M LoRA | facebook/nllb-200-distilled-600M | 6 epochs complètes (2940 steps) | 2800 |
   | C3 : NLLB-600M LoRA, 50 % de sources ASR bruitées | idem | 6 epochs complètes (2940 steps) | 2800 |
+  | Normalisation ByT5-small | google/byt5-small | 1 epoch (1026 steps, 38 min ; choix de l'utilisatrice) | 1000 |
 
 - Décodage : Whisper ASR greedy (beam 5 en variante, test seulement), traduction beam 4.
 - Licence CC BY-NC-ND : ni l'audio ni les modèles ne sont publiés ; le dépôt reste privé.
@@ -224,8 +226,66 @@ Régions attribuées aux talks d'après le lieu de l'événement TEDx (sources :
 
 ## 6. Normalisation du texte (notebook 03)
 
-À compléter le 13/11 (ByT5 1 epoch avec contrôle de recopie, passe finale du notebook 03). Les choix de
-normalisation pour l'évaluation sont décrits dans « Notes de protocole ».
+Passe finale du 13/11/2026 (ByT5 entraîné et évalué dans le même passage). Les choix de normalisation pour
+l'**évaluation** de l'ASR sont décrits dans « Notes de protocole » ; ici, la normalisation comme **convention
+d'écriture** (`WRITING_NORM`).
+
+### 6.1 Variations orthographiques observées
+
+- 32 071 formes distinctes, 31 778 squelettes (forme sans les différences graphiques) ; **241 squelettes ont au
+  moins deux graphies**, soit 12,3 % des occurrences. Presque toutes viennent de l'alef / hamza : `آ` (5 474) / `أ`
+  (1 267) / `إ` (74) ; `آنا` / `أنا` / `انا` / `إنا` ; `إنو` / `أنو` ; `آم` / `أم` / `إم`. Puis `على` / `علي`,
+  `حتى` / `حتي` (ya / alif maqsura).
+- Réduction du vocabulaire du train par les règles : **2,25 %** au total (alef 0,75 point, ya 0,15, ponctuation
+  1,33 ; diacritiques, /g/, chiffres, allongements, frontière de script : ≈ 0 sur ce corpus).
+- Lexique « forme majoritaire » construit sur le train : 276 formes réécrites.
+- Emprunts arabe ↔ latin : 1 946 paires candidates par squelette phonétique, avec beaucoup de faux positifs pour les
+  mots courts (`خاطر` / `quatre`, `تونس` / `tiens`) : liste à valider à la main, non utilisée automatiquement.
+
+### 6.2 Mesures intrinsèques (dev + test)
+
+| Méthode | vocabulaire | OOV / train (%) | ratio de longueur |
+|---|---|---|---|
+| brut | 5 897 | 9,74 | 1,000 |
+| règles (`WRITING_NORM`) | 5 781 | 9,17 | 1,022 |
+| lexique majoritaire | 5 869 | 9,74 | 1,000 |
+
+Les règles réduisent le taux de mots inconnus de 0,57 point ; le ratio de longueur 1,022 vient de la coupure des
+apostrophes françaises (`c'était` → `c était`) et des mots hybrides.
+
+### 6.3 ByT5 : généralisation aux variantes jamais vues
+
+- **Contrôle de recopie (fait avant tout score)** : 50 phrases du dev sans aucun mot d'un groupe de variantes,
+  recopiées à **96 % à l'identique**, similarité en caractères **99,9 %** (seuil fixé à 95 %) : modèle cohérent,
+  score rapporté. Embeddings liés vérifiés au rechargement.
+- Entraînement : ByT5-small, 16 414 paires (phrases du train dont des mots ont été remplacés par une autre de leurs
+  graphies observées), **1 epoch (1 026 steps)**, 38 min sur le GPU de 6 Go ; validation sur 5 % des paires.
+- Test : 261 phrases du dev et du test dont **les squelettes ont été tenus à part** (jamais vus à l'entraînement),
+  chaque mot concerné remplacé par une variante observée.
+
+| Méthode | exactitude sur les mots de squelettes jamais vus (%) |
+|---|---|
+| identité (ne rien faire) | 36,10 |
+| lexique majoritaire | 36,10 |
+| **ByT5** | **83,71** |
+
+ByT5 apprend la convention (forme majoritaire) au niveau des caractères et l'applique à des mots absents de son
+entraînement ; le lexique, par construction, ne sait rien de ces mots. Limite : les variantes de test sont des
+graphies **observées mais réassemblées automatiquement** ; il n'y a pas de référence normalisée humaine.
+
+### 6.4 Effet sur les tâches (test)
+
+- **WER** (whisper-small-ft) : brut 34,55, orthographe 34,31, lexique majoritaire 34,33, sans hésitations 33,72,
+  script-aware 33,66 : la normalisation déplace le WER de moins d'un point.
+- **Traduction** (NLLB zero-shot sur les transcriptions de référence) : BLEU 13,07 / chrF++ 37,09 sur le texte brut,
+  12,76 / 36,97 après les règles. La normalisation n'aide pas la traduction (légère baisse, non testée) ; une cause
+  probable est la coupure des apostrophes du français (`l'élan` → `l élan`) qui change les tokens vus par NLLB.
+- **LLM** (Qwen2.5-1.5B, 100 phrases du test) et **arabe standard** (NLLB, 10 phrases) : analyse qualitative
+  seulement. Le LLM touche au français (`évident` → `évidant`). La transformation vers l'arabe standard est une
+  traduction : elle perd des informations et invente parfois (`لسليانة`, la ville de Siliana, rendu par « الحانة »,
+  « le bar ») ; le français mélangé est souvent laissé tel quel.
+- L'annotation manuelle prévue (`results/03_manual_annotation.csv`, colonnes C / S / R) n'a pas été remplie : les
+  sorties LLM et ByT5 sur phrases réelles ne sont pas notées par un humain.
 
 ## 7. Interface et tests de la plateforme
 
@@ -415,8 +475,9 @@ Ceux qui touchent l'interprétation des résultats :
 
 ## À faire
 
-- 13/11 : ByT5 (1 epoch, contrôle de recopie avant tout score) et passe finale du notebook 03 (section 6 de ce
-  document : normalisation) ; remise des réglages de veille d'origine.
+- Fait le 13/11 : ByT5 et passe finale du notebook 03 (section 6), réglages de veille d'origine remis.
+- Reste possible sans calcul : remplir l'annotation manuelle (`results/03_manual_annotation.csv`,
+  `results/02_manual_annotation.csv`) et valider la liste des emprunts arabe ↔ latin.
 - Hors du temps de calcul disponible : voir « Améliorations envisagées » (w2v-BERT, E2E-1, Whisper plus grands,
   LLM plus gros ou fine-tuné, beam 5 évalué sur le dev, règle de choix du checkpoint sur le BLEU du dev pour la
   traduction).
