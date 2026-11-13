@@ -171,9 +171,9 @@ différent de C2 : -0,40 BLEU [-1,14 ; +0,24]).
   contresens 13,6 %, ajout / hallucination 4,4 %, omission 1,1 %, répétition en boucle 0,5 % ; C2 : 80,6 / 13,2 /
   3,3 / 2,4 / 0,2 %. Profils très proches ; la cascade hallucine un peu moins, omet un peu plus.
 - **Autres langues cibles** (sans référence dans TEDxTN : mesure indicative par aller-retour vers l'anglais avec
-  NLLB, chrF++ contre la référence anglaise) : français 42,2, arabe standard 39,9. Mesure faite avec le NLLB de **C3**
-  (`mt_best` copié dans un ordre fixe, CHANGELOG n° 61), pas celui de C2 ; C2 et C3 étant équivalents sur le dev et
-  le test, l'écart attendu est faible, mais il n'est pas mesuré.
+  NLLB de C2, chrF++ contre la référence anglaise ; 150 segments du test) : français 42,2, arabe standard 39,9.
+  Vérifié le 13/11 en refaisant la mesure avec `mt_best` corrigé (CHANGELOG n° 61) : 150 traductions sur 150
+  identiques, car cette cellule s'exécutait avant la copie du NLLB de C3 dans `mt_best`.
 
 ### 4.4 Comparaison avec le papier (Tableau 7, BLEU au même protocole)
 
@@ -297,17 +297,17 @@ graphies **observées mais réassemblées automatiquement** ; il n'y a pas de r�
   +7,7 points de WER ; traduction LLM : BLEU 6,1 contre 21,1 pour NLLB fine-tuné).
 - Tests de la plateforme (`scripts/platform_tests.py`, `results/platform_tests.csv`) : 20 segments du test tirés au
   hasard par type (13 MIXED, 5 TUN, 2 FOR ; 1,2 à 12,0 s, 4,7 s en moyenne) x 3 modes (pipeline, direct, comparaison)
-  x 3 langues cibles = 180 exécutions. **180 / 180 sans étape en erreur**, aucun avertissement ; temps médian 0,9 s
-  par exécution (max 8,1 s, premier appel compris) sur le GPU de 6 Go. chrF++ indicatif vers l'anglais (20 segments) :
-  pipeline 43,1, direct 38,7.
+  x 3 langues cibles = 180 exécutions, avec le NLLB de C2. **180 / 180 sans étape en erreur**, aucun avertissement ;
+  temps médian 0,9 s par exécution (max 12,4 s, premier appel compris, chargement des modèles) sur le GPU de 6 Go.
+  chrF++ indicatif vers l'anglais (20 segments) : pipeline 40,1, direct 38,7, comparaison 39,4.
 - Bug trouvé par ces tests et corrigé avant la relance (CHANGELOG n° 59) : en beam search, le calcul des probabilités
   par token de l'interface faisait planter le GPU (première exécution : 3 / 180). Il ne concernait pas les
   prédictions évaluées.
-- **Correction (CHANGELOG n° 61)** : pendant ces tests et la démo du notebook 05, le NLLB de l'interface était
-  celui de **C3** (copié dans un ordre fixe), et non celui de C2 choisi sur le dev ; c'est corrigé, l'interface
-  charge maintenant le NLLB de C2 (vérifié par empreinte des poids et au chargement). Les 180 tests portent donc sur
-  le pipeline ASR → NLLB de C3 ; le pipeline avec C2 n'a pas été retesté.
-- Démo du notebook 05 (5 segments du test, mode comparaison) : WER par segment de 6,3 à 30,6 %, traductions
+- **Correction (CHANGELOG n° 61)** : les tests du 12/11 et la démo du notebook 05 avaient été faits avec le NLLB de
+  **C3** (copié dans un ordre fixe dans `mt_best`) au lieu de celui de C2 choisi sur le dev (alors : 180 / 180, chrF++
+  indicatif du pipeline 43,1). Refaits le 13/11 avec le NLLB de C2 (vérifié par empreinte des poids et au
+  chargement) : ce sont les chiffres ci-dessus.
+- Démo du notebook 05 (5 segments du test, mode comparaison, refaite avec le NLLB de C2) : WER par segment de 6,3 à 30,6 %, traductions
   directe et pipeline produites pour chaque segment.
 
 ## Notes de protocole
