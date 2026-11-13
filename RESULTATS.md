@@ -203,6 +203,7 @@ Régions attribuées aux talks d'après le lieu de l'événement TEDx (sources :
 | | GroupKFold + vote par talk | 0,424 | 0,190 |
 | | KFold aléatoire (**fuite** entre talks, pour comparaison seulement) | 0,598 | 0,543 |
 | Région (audio, plongements w2v-BERT-2.0, 40 segments par talk) | GroupKFold par talk (4 plis) | 0,607 | 0,480 |
+| | classe majoritaire, **même échantillon** (3 400 segments, 85 talks), **mêmes plis** | 0,518 | 0,171 |
 | Type de segment TUN / MIXED / FOR (audio) | train → test officiel (842 segments) | 0,741 | 0,689 |
 
 - **Région par le texte : pas mieux que le hasard pondéré.** Avec un protocole honnête (talks séparés), l'accuracy
@@ -210,9 +211,15 @@ Régions attribuées aux talks d'après le lieu de l'événement TEDx (sources :
   Le protocole avec fuite (0,598) montre ce que l'on mesurerait à tort : le modèle reconnaît le talk (sujet,
   vocabulaire), pas la région. Les n-grammes les plus associés confirment : noms de lieux (`صفاقس` pour le Sud) et
   mots du sujet (`pc` pour le Cap Bon).
-- **Région par l'audio : 0,607 d'accuracy, F1 macro 0,480**, nettement mieux que le texte. Limite : avec des talks
-  séparés, le modèle peut encore exploiter les conditions d'enregistrement d'un même événement (salle, micro), liées
-  à la région ; ce n'est pas une preuve qu'il reconnaît l'accent.
+- **Région par l'audio : 0,607 d'accuracy, F1 macro 0,480**, contre 0,518 / 0,171 pour la classe majoritaire sur
+  le même échantillon et les mêmes plis (`scripts/majority_audio_region.py`, sans entraînement) : **+8,9 points
+  d'accuracy**, gain net en F1 macro. Nettement mieux que le texte.
+- **Mais l'audio peut capter la salle et le micro plutôt que l'accent.** Les talks d'un même événement TEDx
+  partagent l'acoustique de la salle, le micro et la chaîne de captation, et la même région. Séparer les talks ne
+  sépare pas les événements : les plongements w2v-BERT (non fine-tunés) captent ce canal autant que l'accent. Le gain
+  sur la classe majoritaire ne prouve donc pas que l'accent régional est reconnu. Un découpage groupé par événement
+  le testerait, mais la plupart des régions ont trop peu d'événements pour former des plis (Cap Bon : 4 talks).
+  Constat d'analyse, sans nouvel entraînement.
 - **Type de code-switching par l'audio** (test officiel) : F1 0,81 pour MIXED, 0,63 pour TUN et pour FOR.
 
 ## 6. Normalisation du texte (notebook 03)
