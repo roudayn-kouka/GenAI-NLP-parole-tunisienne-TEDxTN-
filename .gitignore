@@ -1,5 +1,7 @@
 # Données, audio et modèles : jamais versionnés (licence CC BY-NC-ND + taille)
 workdir/
+# Historique de l'interface (analyses de la voix de l'utilisatrice) : jamais versionné, où qu'il soit
+app_history/
 *.wav
 *.mp3
 *.m4a

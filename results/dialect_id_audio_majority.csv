@@ -1,0 +1,2 @@
+tâche,protocole,accuracy,précision macro,rappel macro,F1 macro,segments,talks
+région (audio),"classe majoritaire (même échantillon, mêmes plis)",0.518,0.129,0.25,0.171,3400,85

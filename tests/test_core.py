@@ -167,6 +167,61 @@ def test_pipeline_with_fake_backends():
     assert set(res.translations) == {"Pipeline ASR → NLLB", "Pipeline ASR → LLM"}
 
 
+def test_history():
+    """Historique de l'interface : enregistrer, lister, rouvrir (parcours complet sans modèle), exporter, supprimer."""
+    import json
+    import tempfile
+    from app import history
+    pipe = TunisianSpeechPipeline(asr=FakeASR(), e2e=FakeE2E(), mt=FakeMT())
+    res = pipe.run((44_100, (np.repeat(_tone(3, 0.3)[:, None], 2, 1) * 32767).astype(np.int16)), target="Anglais",
+                   mode="compare")
+    with tempfile.TemporaryDirectory() as d:
+        rid = history.save(res, {"source": "micro", "source_kind": "micro", "settings": {"mode": "Comparer"}}, d)
+        recs = history.list_records(d)
+        assert [r["id"] for r in recs] == [rid] and recs[0]["source"] == "micro" and recs[0]["mode"] == "Comparer"
+        back = history.to_result(history.load(rid, d))
+        assert back.transcript == res.transcript and back.translations == res.translations
+        assert [s.key for s in back.steps] == [s.key for s in res.steps]
+        assert [s.model for s in back.steps] == [s.model for s in res.steps]
+        assert any("data:image/png;base64," in s.html for s in back.steps)   # figures conservées (PNG)
+        assert json.load(open(history.export_path(rid, d), encoding="utf-8"))["id"] == rid
+        rid2 = history.save(res, {"source": "corpus test__00001"}, d)
+        assert len(history.list_records(d)) == 2
+        assert history.delete(rid, d) and not history.delete(rid, d)
+        assert [r["id"] for r in history.list_records(d)] == [rid2]
+        for bad in ("../x", "abc", "20261113-120000-zzzzzz"):
+            try:
+                history.load(bad, d)
+                raise AssertionError("identifiant invalide accepté")
+            except ValueError:
+                pass
+
+
+def test_reference_scores():
+    """Onglet « Voix existantes » : scores d'un segment contre sa référence (mêmes conventions que l'évaluation)."""
+    from app.scoring import compare_to_reference, reference_html
+    ref_tun, ref_en = "آنا نحب tunis برشا", "I love Tunis a lot"
+    s = compare_to_reference(ref_tun, {"Directe": ref_en}, ref_tun, ref_en)
+    assert s["WER"] == 0 and s["CER"] == 0
+    assert s["translations"]["Directe"]["BLEU"] == 100 and s["translations"]["Directe"]["chrF++"] == 100
+    s = compare_to_reference("آنا نحب برشا", {"Pipeline": "I like it"}, ref_tun, ref_en)
+    assert s["WER"] == 25.0   # une suppression sur 4 mots
+    assert 0 <= s["translations"]["Pipeline"]["BLEU"] < 100 and s["translations"]["Pipeline"]["chrF++"] < 100
+    # même WER que l'évaluation des notebooks (RAW_NORM : ponctuation et casse latine ignorées)
+    assert compare_to_reference("Tunis, برشا!", {}, "tunis برشا", "")["WER"] == 0
+    h = reference_html(s, "آنا نحب برشا", {"Pipeline": "I like it"}, ref_tun, ref_en)
+    assert "<del>" in h and "WER" in h and "BLEU" in h
+    # tableau compact des segments : filtres, colonnes, identifiant en première colonne (sert à la sélection)
+    import pandas as pd
+    from app.app import VOICE_COLS, filter_voices, voice_table
+    v = pd.DataFrame({"seg_id": ["test__1", "test__2", "dev__1"], "split": ["test", "test", "dev"],
+                      "talk": ["a", "b", "a"], "seg_type": ["TUN", "FOR", "TUN"], "duration": [3.0, 12.0, 5.0],
+                      "transcription": ["آنا " * 30, "bonjour", "x"], "translation": ["", "", ""], "path": ["", "", ""]})
+    t = voice_table(filter_voices(v, "test", "Tous", ["TUN"], 0, 30))
+    assert list(t.columns) == VOICE_COLS and t["n°"].tolist() == ["1"] and t.iloc[0, -1].endswith("…")
+    assert voice_table(filter_voices(v, "test", "a", ["FOR"], 0, 30)).empty
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

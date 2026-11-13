@@ -28,3 +28,9 @@ for tr, te in GroupKFold(n_folds).split(np.zeros(len(y)), y, g):
 for name, p in [("classe majoritaire (globale)", pred_glob), ("classe majoritaire du pli d'apprentissage", pred_fold)]:
     pr, rc, f1, _ = precision_recall_fscore_support(y, p, average="macro", zero_division=0)
     print(f"{name} : accuracy {accuracy_score(y, p):.3f}, F1 macro {f1:.3f}")
+pr, rc, f1, _ = precision_recall_fscore_support(y, pred_fold, average="macro", zero_division=0)
+out = pd.DataFrame([{"tâche": "région (audio)", "protocole": "classe majoritaire (même échantillon, mêmes plis)",
+                     "accuracy": round(accuracy_score(y, pred_fold), 3), "précision macro": round(pr, 3),
+                     "rappel macro": round(rc, 3), "F1 macro": round(f1, 3), "segments": len(y), "talks": Da.talk.nunique()}])
+out.to_csv("results/dialect_id_audio_majority.csv", index=False)
+print("-> results/dialect_id_audio_majority.csv")

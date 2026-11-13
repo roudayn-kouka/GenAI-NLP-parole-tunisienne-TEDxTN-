@@ -56,6 +56,7 @@ class Step:
     html: str = ""                # détail riche
     figure: Any = None            # figure matplotlib éventuelle
     data: dict = field(default_factory=dict)
+    model: str = ""               # modèle utilisé à cette étape (nom et type), affiché par l'interface
 
 
 @dataclass
@@ -273,6 +274,45 @@ def diff_html(a: str, b: str) -> str:
 
 
 # ==========================================================================
+# Description des modèles (affichée dans l'interface ; ne change aucun calcul)
+# ==========================================================================
+STEP_MODELS = {   # étapes sans modèle appris
+    "input": "Traitement du signal, sans modèle (mono, rééchantillonnage 16 kHz, niveau)",
+    "vad": "Traitement du signal, sans modèle (seuil d'énergie adaptatif)",
+    "features": "Extracteur log-Mel de Whisper (calcul fixe, sans apprentissage)",
+    "codeswitch": "Règles sur l'écriture des mots, sans modèle",
+    "normalize": "Règles d'écriture WRITING_NORM (notebook 03), sans modèle",
+    "result": "Aucun modèle (assemblage et temps)",
+}
+_WHISPER_SIZES = {384: "tiny", 512: "base", 768: "small", 1024: "medium", 1280: "large"}
+
+
+def describe_model(path_or_id: str, role: str, fallback_used: bool = False) -> str:
+    """Nom lisible d'un modèle : architecture, taille, origine (SOURCE.txt écrit par les notebooks) ou repli."""
+    p = Path(str(path_or_id))
+    cfg = json.loads((p / "config.json").read_text()) if (p / "config.json").exists() else {}
+    source = (p / "SOURCE.txt").read_text().strip() if (p / "SOURCE.txt").exists() else ""
+    mtype = cfg.get("model_type", "")
+    if fallback_used or not cfg:
+        return f"{path_or_id} (modèle de base, zero-shot : REPLI, le modèle fine-tuné est absent)"
+    if mtype == "whisper":
+        size = _WHISPER_SIZES.get(cfg.get("d_model"), "")
+        base = f"Whisper-{size}" if size else "Whisper"
+        if role == "translate":
+            tag = " (E2E-2)" if source.startswith("E2E-2") else ""
+            return f"{base} en traduction directe{tag}, fine-tuné sur TEDxTN (encodeur-décodeur)"
+        return f"{base} fine-tuné sur TEDxTN (encodeur-décodeur){f' · {source}' if source else ''}"
+    if mtype == "m2m_100":
+        size = "600M" if cfg.get("d_model") == 1024 and cfg.get("encoder_layers") == 12 else ""
+        lora = " + LoRA" if "lora" in source else ""
+        stage = f" ({source.split('-[', 1)[0]})" if "-[" in source else ""
+        return f"NLLB-{size or '200'}{lora}{stage}, fine-tuné sur TEDxTN (traduction de texte)"
+    if mtype in ("wav2vec2-bert", "wav2vec2"):
+        return f"{mtype} + CTC fine-tuné sur TEDxTN (encodeur seul){f' · {source}' if source else ''}"
+    return f"{p.name} ({mtype or 'modèle'})"
+
+
+# ==========================================================================
 # Backends réels (modèles des notebooks)
 # ==========================================================================
 def _model_kind(path_or_id: str) -> str:
@@ -296,6 +336,7 @@ class ASRBackend:
                             f"les résultats seront nettement moins bons (cf. Table 6 du papier).")
             model_path = fallback
         self.path, self.kind, self.num_beams = model_path, _model_kind(model_path), num_beams
+        self.label = describe_model(model_path, "asr", bool(self.warning))
         self.name = Path(model_path).name if Path(model_path).exists() else model_path
         if self.kind == "whisper":
             from .asr import DEVICE, load_whisper
@@ -338,6 +379,7 @@ class E2EBackend:
             model_path = fallback
         from .asr import DEVICE, load_whisper
         self.name = Path(model_path).name if Path(model_path).exists() else model_path
+        self.label = describe_model(model_path, "translate", bool(self.warning))
         self.processor, self.model = load_whisper(model_path, task="translate", for_training=False)
         if DEVICE == "cuda":
             self.model = self.model.half()
@@ -356,6 +398,7 @@ class MTBackend:
             model_path = fallback
         from .translate import load_nllb
         self.name = Path(model_path).name if Path(model_path).exists() else model_path
+        self.label = describe_model(model_path, "mt", bool(self.warning))
         self.tok, self.model = load_nllb(model_path)
 
     def translate(self, texts, tgt_code, src_code=None):
@@ -370,10 +413,16 @@ class MTBackend:
             self.tok.src_lang = old
 
 
+def _label(backend) -> str:
+    """Nom du modèle d'un backend (backends de test : leur `name`)."""
+    return getattr(backend, "label", "") or getattr(backend, "name", "") or type(backend).__name__
+
+
 class LLMBackend:
     def __init__(self, model_id: str):
         from .llm import load_llm
         self.name = model_id
+        self.label = f"{model_id.split('/')[-1]} (LLM instruct, quantifié en 4 bits, sans fine-tuning)"
         self.tok, self.model = load_llm(model_id)
         # Exemples (sortie ASR, référence) du TRAIN, écrits par le notebook 01 (section GenAI)
         from .config import DATA_DIR
@@ -468,7 +517,7 @@ class TunisianSpeechPipeline:
         t_all = time.perf_counter()
 
         def add(key, fn):
-            st = Step(key, TITLES[key], EXPLAIN[key])
+            st = Step(key, TITLES[key], EXPLAIN[key], model=STEP_MODELS.get(key, ""))
             t0 = time.perf_counter()
             try:
                 fn(st)
@@ -558,6 +607,7 @@ class TunisianSpeechPipeline:
         # ---------------- 4. ASR ----------------
         def s_asr(st):
             backend = self.asr
+            st.model = _label(backend)
             outs = backend.transcribe(pieces)
             texts = [o["text"] if isinstance(o, dict) else o for o in outs]
             res.transcript = " ".join(t for t in texts if t).strip()
@@ -620,6 +670,7 @@ class TunisianSpeechPipeline:
 
         def s_llm(st):
             nonlocal mt_input
+            st.model = _label(self.llm)
             corrected, accepted = self.llm.correct([res.transcript])
             mt_input = corrected[0]
             st.summary = "correction acceptée" if accepted[0] else "aucune correction retenue"
@@ -636,15 +687,17 @@ class TunisianSpeechPipeline:
         info = TARGET_LANGUAGES[target]
 
         def s_tr(st):
-            rows, notes = [], []
+            rows, notes, used = [], [], []
             if mode in ("direct", "compare"):
                 o = self.e2e.translate_audio(pieces)
+                used.append(_label(self.e2e))
                 en = " ".join((x["text"] if isinstance(x, dict) else x) for x in o).strip()
                 if info["whisper"] == "en":
                     res.translations["Directe (end-to-end)"] = en
                 else:
                     # le modèle E2E n'est entraîné que vers l'anglais (seules références de TEDxTN) : pivot
                     piv = self.mt.translate([en], info["nllb"], src_code="eng_Latn")[0]
+                    used.append(_label(self.mt) + " (pivot anglais)")
                     res.translations["Directe + pivot anglais"] = piv
                     notes.append("Le modèle end-to-end ne produit que de l'anglais (seule langue de référence de "
                                  "TEDxTN). Vers une autre langue, l'anglais sert de pivot (NLLB eng_Latn → cible).")
@@ -653,10 +706,12 @@ class TunisianSpeechPipeline:
             if mode in ("pipeline", "compare") and mt_input:
                 if mt_engine in ("NLLB", "NLLB + LLM"):
                     res.translations["Pipeline ASR → NLLB"] = self.mt.translate([mt_input], info["nllb"])[0]
+                    used.append(_label(self.mt))
                     if getattr(self.mt, "warning", ""):
                         notes.append(self.mt.warning)
                 if mt_engine in ("LLM", "NLLB + LLM"):
                     res.translations["Pipeline ASR → LLM"] = self.llm.translate([mt_input], info["llm_name"])[0]
+                    used.append(_label(self.llm))
                     notes.append(LLM_TRANSLATION_WARNING)
             for k, v in res.translations.items():
                 rows.append(f"<div class='tr-card'><div class='tr-h'>{html.escape(k)}</div>"
@@ -668,6 +723,7 @@ class TunisianSpeechPipeline:
                 sc = sacrebleu.sentence_chrf(vals[0], [vals[1]]).score
                 agree = f"<div class='agree'>Accord entre les deux premières traductions (chrF) : <b>{sc:.0f}</b>/100</div>"
                 st.data["accord chrF"] = round(sc, 1)
+            st.model = " + ".join(dict.fromkeys(used))
             st.summary = f"{target} · " + ", ".join(res.translations) if res.translations else "aucune traduction"
             st.html = "".join(f"<div class='note'>{html.escape(n)}</div>" for n in notes) + \
                       f"<div class='tr-grid'>{''.join(rows)}</div>" + agree
