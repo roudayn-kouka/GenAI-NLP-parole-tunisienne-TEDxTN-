@@ -101,8 +101,11 @@ def asr_items(root=RESULTS_DIR) -> list[Item]:
          "WER moyen du système retenu selon la durée du segment (secondes), l'indice de mélange des langues (CMI) et "
          "le talk. Plus la barre est courte, mieux c'est. Les segments courts sont les plus difficiles (peu de "
          "contexte) ; l'écart entre talks est plus grand que l'effet du mélange de langues."),
-        ("01_distributions", "Le corpus",
-         "Distribution des durées de segments, du nombre de mots et du mélange de langues par split.")]:
+        ("01_distributions", "Le corpus : durée, mots et débit par split",
+         "Trois graphiques, avec dans chacun un histogramme par split (train, dev, test ; normalisés, donc "
+         "comparables malgré des tailles différentes) : durée des segments (secondes), nombre de mots par segment et "
+         "débit de parole (caractères de la transcription par seconde). Les trois splits ont des distributions proches : le dev et le test "
+         "ressemblent au train sur ces trois mesures.")]:
         p = _img(name, root)
         if p:
             if name == "01_distributions":
@@ -170,10 +173,20 @@ def ast_items(root=RESULTS_DIR) -> list[Item]:
     out.append(Item("table", "Repères du papier (Tableau 7, test)", pap, cap))
     p = _img("02_ast_comparison", root)
     if p:
-        out.append(Item("image", "BLEU par système (test)", p,
-                        "BLEU de chaque système sur le test (plus long = mieux), repères du papier. Les cascades avec NLLB "
-                        "fine-tuné (C2, C3) et la traduction directe E2E-2 dominent ; NLLB sans fine-tuning (C1) et le LLM "
-                        "(C4) restent loin derrière."))
+        cap = ("Longueur de la barre : <b>chrF++</b> de chaque système sur le test (plus long = mieux) ; le nombre à "
+               "droite de la barre est son <b>BLEU</b>. Orange : traduction directe (un seul modèle, de l'audio à "
+               "l'anglais) ; vert : pipeline (ASR puis traduction du texte). Les traductions des transcriptions de "
+               "référence (oracle) et les chiffres du papier ne figurent pas sur cette figure (voir les tableaux "
+               "ci-dessus).")
+        if test is not None and "chrF++" in test:
+            f = test[test.type != "oracle"].sort_values("chrF++", ascending=False)
+            if len(f) >= 2:
+                hi, lo = f.iloc[0], f.iloc[-1]
+                cap += (f" <b>Constat</b> : de {lo['système']} (chrF++ {fr(lo['chrF++'])}, BLEU {fr(lo.BLEU)}) à "
+                        f"{hi['système']} (chrF++ {fr(hi['chrF++'])}, BLEU {fr(hi.BLEU)}). Les cascades avec NLLB "
+                        "fine-tuné (C2, C3) et la traduction directe E2E-2 dominent ; NLLB sans fine-tuning (C1) et "
+                        "le LLM (C4) restent loin derrière.")
+        out.append(Item("image", "chrF++ et BLEU par système (test)", p, cap))
     p = _img("02_error_propagation", root)
     if p:
         cap = ("Chaque point est un segment du test : en abscisse le WER de sa transcription, en ordonnée le chrF de sa "
