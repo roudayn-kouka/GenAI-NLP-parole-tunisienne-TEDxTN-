@@ -89,10 +89,26 @@ Chaque entrée correspond à un commit git.
   Recherche de décalage (3 segments, ±10 s) puis contrôle approfondi (10 segments, ±15 s) : un seul décalage
   constant, **Sfax_el_mezyena_Fakhri_Fourati_TEDxENIS : +9,0 s** (CER 80,9 -> 48,7 sur 3 segments, confirmé sur 10).
   Les 20 autres : aucun décalage concordant (meilleur décalage soutenu par 10 à 30 % des segments), CER élevé dû à des
-  hallucinations du zero-shot (répétitions) ; aucun talk exclu. 5 des 8 pires talks sont de TEDxPashaStreet : à
+  hallucinations du zero-shot (répétitions) ; aucun talk exclu (revu le 14/11 pour Youssef_Cherif : décalage de
+  +128 s, hors de la grille ; voir plus bas). 5 des 8 pires talks sont de TEDxPashaStreet : à
   revérifier avec le modèle fine-tuné (CER par talk du train). Heures utilisables = heures annotées
   (train 22,67 h, dev 1,13 h, test 1,24 h). Contrôle énergie/durée sur 5 segments : durées exactes, 16 kHz mono ;
   un segment très faible (train__12613, 1,1 s, -50 dBFS, 34 % de silence).
+- Talk du train Youssef_Cherif_Archelogie_TEDxENSI (WER 267,14 % dans `01_hard_talks.csv` alors qu'il est vu à
+  l'entraînement, SNR 22,5 dB), contrôlé le 14/11 par `scripts/check_talk.py` (aucun réentraînement, aucun système
+  ni fichier de données modifié) :
+  - vidéo correcte : le titre correspond, et l'audio (1 296,5 s) couvre la dernière annotation (1 163,4 s) ;
+  - **décalage constant de +128 s** : recherche de −300 à +300 s par pas de 2 s avec le modèle fine-tuné, sur 20
+    segments répartis : creux net pour 14 segments, tous à +128 / +132 s, pente −0,01 s par minute ; contrôle zero-shot
+    turbo sur 40 segments : CER 83,6 % à 0 s contre 66,1 % à +128 s (meilleur pour 78 % des segments). La grille
+    d'origine (±10 / ±15 s) ne pouvait pas le trouver ;
+  - les hallucinations sont la conséquence du décalage : 25 segments sur 40 partent en boucle (26 à la limite de
+    225 tokens), et portent 3 872 des 4 494 erreurs ; sans eux, le WER est de 110 %, car à 0 s chaque segment
+    contient une autre phrase que sa référence. Les 3 pires segments ont la durée annotée exacte, de −36 à
+    −41,5 dBFS, et 73 à 83 % de trames de parole.
+
+  `youtube_urls.csv` n'est pas modifié, pour garder reproductibles les résultats publiés ; correction proposée pour
+  un prochain entraînement : `offset_s = 128`. Sorties : `results/talk_check_Youssef_Cherif*.csv`.
 - Normalisation (dev, whisper-small-ft, 731 segments, `scripts/norm_ablation.py`) : RAW 34,80 % (3 970 erreurs /
   11 409 mots), EVAL 35,18 % (3 860 / 10 972). La hausse vient de `remove_hesitations` : seule, elle retire 372 mots de
   référence (dont 359 « آ ») mais seulement 49 erreurs (aucun segment avec plus d'erreurs) -> +0,73 point, effet de

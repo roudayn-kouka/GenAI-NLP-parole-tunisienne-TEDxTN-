@@ -48,6 +48,29 @@
 - Segments avec au moins un mot étranger : 53,8 % (papier : 53,7 %). L'indice CMI calculé ici (train 11,1 ; dev 16,7 ;
   test 15,8) est plus bas que celui du papier (20,66 ; 24,37 ; 33,09) : la définition exacte du papier n'est pas
   donnée, les deux ne sont pas comparables.
+- **Talk du train mal aligné : Youssef_Cherif_Archelogie_TEDxENSI (décalage de +128 s)**, constaté le 14/11 par
+  `scripts/check_talk.py`, sans réentraînement ni changement de système. Ce talk avait un WER de 267,14 % (CER
+  137,29 %) dans `01_hard_talks.csv`, alors qu'il est vu à l'entraînement et que son SNR est de 22,5 dB ; ces
+  chiffres sont reproduits à l'identique sur le même échantillon de 40 segments. Diagnostic :
+  - **ce n'est pas une mauvaise vidéo** : le titre YouTube correspond (« Youssef Cherif | Archélogie | #TEDxENSI ») ;
+    le modèle fine-tuné transcrit bien le sujet du talk (« l'archéologie des jeux vidéos ») ; audio 1 296,5 s pour
+    une dernière annotation à 1 163,4 s ;
+  - **c'est un décalage constant** : la recherche par segment de −300 à +300 s (pas de 2 s, modèle fine-tuné,
+    20 segments répartis sur le talk) donne un creux net pour 14 segments, tous entre +128 et +132 s (16 sur 20 entre
+    +126 et +132 s), sans dérive (−0,01 s par minute de talk). Contrôle indépendant en zero-shot
+    (whisper-large-v3-turbo, 40 segments) : CER 83,6 % à 0 s contre 66,1 % à +128 s, meilleur pour 78 % des
+    segments. Avec +128 s, la dernière annotation finit à 1 291 s, avant la fin de l'audio (1 296,5 s). Le contrôle
+    d'alignement de départ (±10 s, puis ±15 s) ne pouvait pas le voir ;
+  - **les hallucinations en sont la conséquence** : à 0 s, chaque segment contient une autre phrase que sa
+    référence (les 3 pires segments ont la bonne durée, de −36 à −41,5 dBFS et 73 à 83 % de trames de parole : ils
+    contiennent bien de la parole, mais pas le texte annoté). Le modèle part alors en boucle pour 25 segments sur
+    40 (26 à la limite de 225 tokens) ; ces 25 segments portent 3 872 des 4 494 erreurs. Sans eux, le WER reste à
+    110 %, car le texte ne correspond pas à l'audio.
+
+  Conséquence : les 72 segments de ce talk (18,9 min, environ 1,4 % des heures du train) ont été appris avec un audio
+  qui ne correspond pas au texte. L'effet sur les résultats n'est pas mesuré : aucun réentraînement n'a été fait, et
+  `youtube_urls.csv` n'a pas été modifié, pour garder les résultats publiés reproductibles. Le dev et le test ne
+  sont pas touchés (talk du train). Détail : `results/talk_check_Youssef_Cherif*.csv`.
 
 ## 3. Reconnaissance de la parole (ASR)
 
@@ -478,6 +501,9 @@ Ceux qui touchent l'interprétation des résultats :
 - **Train bruité conservé** : 6 talks TEDx Pasha Street très bruités (SNR ≈ 4 dB, WER ≈ 100 %) restent dans le train.
 - **Beam 5** : évalué sur le test seulement, donc pas sélectionnable ; le gain observé (-2,5 WER) reste à confirmer
   sur le dev.
+- **Un talk du train décalé de +128 s** (Youssef_Cherif_Archelogie_TEDxENSI, section 2) : appris avec un audio qui ne
+  correspond pas au texte. Le contrôle d'alignement (±15 s au plus) a pu laisser passer d'autres grands décalages
+  parmi les talks au CER zero-shot élevé.
 
 ## À faire
 
@@ -487,3 +513,6 @@ Ceux qui touchent l'interprétation des résultats :
 - Hors du temps de calcul disponible : voir « Améliorations envisagées » (w2v-BERT, E2E-1, Whisper plus grands,
   LLM plus gros ou fine-tuné, beam 5 évalué sur le dev, règle de choix du checkpoint sur le BLEU du dev pour la
   traduction).
+- Pour un prochain entraînement : mettre `offset_s = 128` pour Youssef_Cherif_Archelogie_TEDxENSI dans
+  `youtube_urls.csv`, et relancer la recherche large (`scripts/check_talk.py --wide-only --wide 300`) sur les
+  20 autres talks signalés par le contrôle d'alignement (environ 6 min par talk).
