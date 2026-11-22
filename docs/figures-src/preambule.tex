@@ -1,0 +1,21 @@
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[scaled=0.95]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{xcolor}
+\definecolor{terracotta}{HTML}{C2410C}
+\definecolor{sarcelle}{HTML}{0F766E}
+\definecolor{violet}{HTML}{7C3AED}
+\definecolor{encre}{HTML}{1C1917}
+\definecolor{gris}{HTML}{78716C}
+\definecolor{grisclair}{HTML}{F5F5F4}
+\definecolor{ambre}{HTML}{B45309}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
+\tikzset{
+  boite/.style={draw=#1,fill=#1!7,rounded corners=4pt,align=center,minimum height=1cm,text width=2.9cm,line width=0.8pt,text=encre},
+  boite/.default=gris,
+  titre/.style={font=\small\bfseries,text=#1},
+  fleche/.style={-{Stealth[length=2.6mm]},line width=0.8pt,color=gris},
+}
+\color{encre}
